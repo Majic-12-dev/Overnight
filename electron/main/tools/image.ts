@@ -45,6 +45,11 @@ export type FilterImagesPayload = {
   filter: 'grayscale' | 'sepia' | 'invert'
 }
 
+export type RenameImagesPayload = {
+  outputDir: string
+  items: { sourcePath: string; targetName: string }[]
+}
+
 export async function convertImages({
   inputPaths,
   outputDir,
@@ -200,6 +205,27 @@ export async function filterImages({ inputPaths, outputDir, filter }: FilterImag
     }
     await pipeline.toFile(outputPath)
     outputs.push(outputPath)
+  }
+
+  return { outputDir, totalOutputs: outputs.length, outputs }
+}
+
+export async function renameImages({ outputDir, items }: RenameImagesPayload) {
+  if (!items.length) throw new Error('No items provided.')
+  await ensureDir(outputDir)
+
+  const outputs: string[] = []
+
+  for (const item of items) {
+    if (!item.sourcePath) {
+      throw new Error('Invalid source path')
+    }
+
+    const sourcePath = item.sourcePath
+    const targetPath = path.join(outputDir, sanitizeFileName(item.targetName))
+
+    await fs.copyFile(sourcePath, targetPath)
+    outputs.push(targetPath)
   }
 
   return { outputDir, totalOutputs: outputs.length, outputs }

@@ -41,6 +41,7 @@ import { ImageResizeTool } from '@/tools/image/ImageResizeTool'
 import { ImageCompressTool } from '@/tools/image/ImageCompressTool'
 import { ImageToPdfTool } from '@/tools/image/ImageToPdfTool'
 import { ImageExifTool } from '@/tools/image/ImageExifTool'
+import { ImageRenameTool } from '@/tools/image/ImageRenameTool'
 import { ColorFilterTool } from '@/tools/image/ColorFilterTool'
 import { TextMergeTool } from '@/tools/text/TextMergeTool'
 import { BulkRenamerTool } from '@/tools/file/BulkRenamerTool'
@@ -238,7 +239,7 @@ export const tools: ToolDefinition[] = [
     description: 'Rename by sequence or capture date.',
     categoryId: 'image',
     icon: FileInput,
-    component: PlaceholderTool,
+    component: ImageRenameTool,
   },
   {
     id: 'image-filter',

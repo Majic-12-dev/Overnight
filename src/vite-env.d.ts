@@ -106,6 +106,14 @@ interface Window {
       totalOutputs: number
       outputs: string[]
     }>
+    renameImages: (payload: {
+      outputDir: string
+      items: { sourcePath: string; targetName: string }[]
+    }) => Promise<{
+      outputDir: string
+      totalOutputs: number
+      outputs: string[]
+    }>
     mergeTextFiles: (payload: {
       inputPaths: string[]
       outputDir: string
