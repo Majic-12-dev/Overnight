@@ -102,6 +102,8 @@ contextBridge.exposeInMainWorld('api', {
     separator: string
     includeHeader: boolean
   }) => ipcRenderer.invoke('text:merge', payload),
+  organizeFiles: (payload: { inputPaths: string[]; outputDir: string; rule: 'extension' | 'date' }) =>
+    ipcRenderer.invoke('file:organize', payload),
   bulkRename: (payload: {
     outputDir: string
     items: { sourcePath: string; targetName: string }[]

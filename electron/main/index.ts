@@ -22,7 +22,7 @@ import {
   filterImages,
 } from './tools/image'
 import { mergeTextFiles } from './tools/text'
-import { bulkRename, deleteEmptyFolders, scanLargeFiles } from './tools/file'
+import { bulkRename, deleteEmptyFolders, scanLargeFiles, organizeFiles } from './tools/file'
 import { checksumFiles } from './tools/security'
 import { ensureDir } from './utils/fs'
 
@@ -203,5 +203,6 @@ ipcMain.handle('text:merge', async (_, payload) => mergeTextFiles(payload))
 ipcMain.handle('file:bulk-rename', async (_, payload) => bulkRename(payload))
 ipcMain.handle('file:delete-empty', async (_, payload) => deleteEmptyFolders(payload))
 ipcMain.handle('file:scan-large', async (_, payload) => scanLargeFiles(payload))
+ipcMain.handle('file:organize', async (_, payload) => organizeFiles(payload))
 
 ipcMain.handle('security:checksum', async (_, payload) => checksumFiles(payload))

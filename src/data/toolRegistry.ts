@@ -44,7 +44,7 @@ import { BulkRenamerTool } from '@/tools/file/BulkRenamerTool'
 import { EmptyFolderTool } from '@/tools/file/EmptyFolderTool'
 import { LargeFileScoutTool } from '@/tools/file/LargeFileScoutTool'
 import { ChecksumTool } from '@/tools/security/ChecksumTool'
-import { PlaceholderTool } from '@/tools/PlaceholderTool'
+import { FileOrganizerTool } from '@/tools/file/FileOrganizerTool'
 import DashboardTool from '@/tools/productivity/DashboardTool'
 
 export type ToolCategory = {
@@ -299,7 +299,7 @@ export const tools: ToolDefinition[] = [
     description: 'Organize files by extension or date.',
     categoryId: 'file',
     icon: FileArchive,
-    component: PlaceholderTool,
+    component: FileOrganizerTool,
   },
   {
     id: 'file-scout',

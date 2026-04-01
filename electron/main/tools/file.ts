@@ -191,3 +191,107 @@ export async function scanLargeFiles({ path: rootPath, thresholdBytes }: ScanLar
   }
   return files
 }
+
+export type OrganizeFilesPayload = {
+  inputPaths: string[]
+  outputDir: string
+  rule: 'extension' | 'date'
+}
+
+export async function organizeFiles({ inputPaths, outputDir, rule }: OrganizeFilesPayload) {
+  if (!inputPaths.length) throw new Error('No files provided.')
+
+  const results: string[] = []
+
+  for (const sourcePath of inputPaths) {
+    try {
+      // Validate file exists
+      const stats = await fs.stat(sourcePath)
+      if (!stats.isFile()) {
+        continue // skip directories
+      }
+
+      // Determine target subdirectory
+      let subDir: string
+      if (rule === 'extension') {
+        const ext = getExtension(sourcePath)
+        subDir = categorizeByExtension(ext)
+      } else {
+        subDir = categorizeByDate(stats.mtimeMs)
+      }
+
+      // Build final output path
+      const targetDir = path.join(outputDir, subDir)
+      await ensureDir(targetDir)
+
+      const fileName = path.basename(sourcePath)
+      const targetPath = await uniquePath(path.join(targetDir, fileName))
+
+      // Move file
+      await fs.copyFile(sourcePath, targetPath)
+      results.push(targetPath)
+    } catch (error) {
+      console.error(`Failed to organize '${sourcePath}':`, error)
+      // Continue with next file
+    }
+  }
+
+  if (results.length === 0) {
+    throw new Error('No files were successfully organized.')
+  }
+
+  return { count: results.length, outputDir, results }
+}
+
+function getExtension(filePath: string): string {
+  const ext = path.extname(filePath).toLowerCase()
+  return ext.slice(1) // remove leading dot
+}
+
+function categorizeByExtension(ext: string): string {
+  // Map extensions to friendly folder names
+  const extensionMap: Record<string, string> = {
+    // Images
+    jpg: 'Images', jpeg: 'Images', png: 'Images', gif: 'Images', webp: 'Images', tiff: 'Images', tif: 'Images', bmp: 'Images', ico: 'Images', svg: 'Images',
+    // Documents
+    pdf: 'Documents', doc: 'Documents', docx: 'Documents', txt: 'Documents', rtf: 'Documents', odt: 'Documents',
+    // Spreadsheets
+    xls: 'Spreadsheets', xlsx: 'Spreadsheets', csv: 'Spreadsheets', ods: 'Spreadsheets',
+    // Presentations
+    ppt: 'Presentations', pptx: 'Presentations', key: 'Presentations', odp: 'Presentations',
+    // Videos
+    mp4: 'Videos', mov: 'Videos', avi: 'Videos', mkv: 'Videos', wmv: 'Videos', flv: 'Videos', webm: 'Videos',
+    // Audio
+    mp3: 'Audio', wav: 'Audio', flac: 'Audio', aac: 'Audio', ogg: 'Audio',
+    // Archives
+    zip: 'Archives', rar: 'Archives', '7z': 'Archives', tar: 'Archives', gz: 'Archives',
+    // Code
+    js: 'Code', ts: 'Code', jsx: 'Code', tsx: 'Code', py: 'Code', java: 'Code', c: 'Code', cpp: 'Code', cs: 'Code', php: 'Code', rb: 'Code', go: 'Code', rs: 'Code',
+    // Data
+    json: 'Data', xml: 'Data', yml: 'Data', yaml: 'Data',
+  }
+
+  return extensionMap[ext] || 'Other'
+}
+
+function categorizeByDate(timestampMs: number): string {
+  const date = new Date(timestampMs)
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  return `${year}/${month}`
+}
+
+async function uniquePath(targetPath: string) {
+  const parsed = path.parse(targetPath)
+  let attempt = 0
+  let candidate = targetPath
+  while (true) {
+    try {
+      await fs.access(candidate)
+      attempt += 1
+      candidate = path.join(parsed.dir, `${parsed.name}(${attempt})${parsed.ext}`)
+    } catch {
+      return candidate
+    }
+  }
+}
