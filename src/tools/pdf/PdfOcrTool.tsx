@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef } from 'react'
 import type { ReactNode } from 'react'
 import * as pdfjsLib from 'pdfjs-dist'
 import { createWorker } from 'tesseract.js'
@@ -7,8 +7,8 @@ import { BaseToolLayout } from '@/components/tools/BaseToolLayout'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 
-// Set worker source for pdfjs using CDN
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`
+// Set worker source for pdfjs using CDN (use absolute HTTPS)
+pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`
 
 type PdfOcrToolProps = {
   tool: ToolDefinition
@@ -41,11 +41,19 @@ export function PdfOcrTool({ tool }: PdfOcrToolProps) {
 
       for (let fileIndex = 0; fileIndex < totalFiles; fileIndex++) {
         const toolFile = files[fileIndex]
+        // File type validation: must be PDF (by MIME type or extension)
+        const fileName = toolFile.file.name.toLowerCase()
+        const isPdfByMime = toolFile.file.type === 'application/pdf'
+        const isPdfByExt = fileName.endsWith('.pdf')
+        if (!isPdfByMime && !isPdfByExt) {
+          errors.push({ name: toolFile.name, message: 'Not a PDF file (invalid type)' })
+          continue
+        }
+
         setStatusMessage(`Processing file ${fileIndex + 1} of ${totalFiles}: ${toolFile.name}`)
 
         try {
           const fileText = await processSinglePdf(toolFile, (pageProgress) => {
-            // Map page progress (0-1) to overall progress range for this file
             const perFileWeight = 1 / totalFiles
             const base = (fileIndex / totalFiles) * 100
             const increment = pageProgress * perFileWeight * 100
@@ -57,17 +65,20 @@ export function PdfOcrTool({ tool }: PdfOcrToolProps) {
           errors.push({ name: toolFile.name, message })
         }
 
-        // Update result progressively
         setResultText(combinedText)
       }
 
-      // Final result card
       const resultCard: ReactNode = (
         <Card className="space-y-3 border-border bg-base/60 p-4">
           <h3 className="text-sm font-semibold text-text">OCR Complete</h3>
           <div className="text-sm">
             Successfully processed {totalFiles - errors.length} of {totalFiles} files.
           </div>
+          {resultText && (
+            <div className="max-h-96 overflow-y-auto rounded border border-border bg-base/40 p-3 text-sm font-mono text-text whitespace-pre-wrap">
+              {resultText}
+            </div>
+          )}
           {errors.length > 0 && (
             <div className="space-y-2">
               <div className="text-sm font-semibold text-red-500">Errors</div>
@@ -115,24 +126,27 @@ export function PdfOcrTool({ tool }: PdfOcrToolProps) {
 
     let fullText = ''
 
-    for (let i = 1; i <= numPages; i++) {
-      setStatusMessage(`Processing ${file.name}: page ${i}/${numPages}`)
-      const page = await pdf.getPage(i)
-      const viewport = page.getViewport({ scale: 1.5 })
-      const canvas = canvasRef.current
-      if (!canvas) break
-      canvas.width = viewport.width
-      canvas.height = viewport.height
-      const ctx = canvas.getContext('2d')
-      if (!ctx) continue
+    try {
+      for (let i = 1; i <= numPages; i++) {
+        setStatusMessage(`Processing ${file.name}: page ${i}/${numPages}`)
+        const page = await pdf.getPage(i)
+        const viewport = page.getViewport({ scale: 1.5 })
+        const canvas = canvasRef.current
+        if (!canvas) break
+        canvas.width = viewport.width
+        canvas.height = viewport.height
+        const ctx = canvas.getContext('2d')
+        if (!ctx) continue
 
-      await page.render({ canvasContext: ctx, viewport }).promise
-      const imageDataUrl = canvas.toDataURL('image/jpeg', 0.8)
-      const { data: { text: pageText } } = await worker.recognize(imageDataUrl)
-      fullText += pageText + '\n'
+        await page.render({ canvasContext: ctx, viewport }).promise
+        const imageDataUrl = canvas.toDataURL('image/jpeg', 0.8)
+        const { data: { text: pageText } } = await worker.recognize(imageDataUrl)
+        fullText += pageText + '\n'
+      }
+    } finally {
+      await worker.terminate()
     }
 
-    await worker.terminate()
     return fullText
   }
 
@@ -156,18 +170,20 @@ export function PdfOcrTool({ tool }: PdfOcrToolProps) {
           <div className="text-xs text-muted">
             Upload one or more PDF files. OCR will extract text from each page. Larger files take longer.
           </div>
+          {statusMessage && (
+            <div className="text-xs text-muted">
+              Status: {statusMessage}
+            </div>
+          )}
+          {resultText && (
+            <Button onClick={downloadText} className="w-full">
+              Download Results
+            </Button>
+          )}
         </div>
       }
       onProcess={handleProcess}
       loading={isProcessing}
-      result={resultText ? (
-        <Card className="space-y-3 border-border bg-base/60 p-4">
-          <h3 className="text-sm font-semibold text-text">OCR Result</h3>
-          <div className="max-h-96 overflow-y-auto rounded border border-border bg-base/40 p-3 text-sm font-mono text-text whitespace-pre-wrap">
-            {resultText}
-          </div>
-        </Card>
-      ) : undefined}
     >
       <canvas ref={canvasRef} className="hidden" />
     </BaseToolLayout>
