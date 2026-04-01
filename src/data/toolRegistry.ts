@@ -48,6 +48,7 @@ import { BulkRenamerTool } from '@/tools/file/BulkRenamerTool'
 import { EmptyFolderTool } from '@/tools/file/EmptyFolderTool'
 import { LargeFileScoutTool } from '@/tools/file/LargeFileScoutTool'
 import { ChecksumTool } from '@/tools/security/ChecksumTool'
+import { EncryptTool } from '@/tools/security/EncryptTool'
 import { FileOrganizerTool } from '@/tools/file/FileOrganizerTool'
 import DashboardTool from '@/tools/productivity/DashboardTool'
 
@@ -327,7 +328,7 @@ export const tools: ToolDefinition[] = [
     description: 'Encrypt files with a secure password.',
     categoryId: 'security',
     icon: Shield,
-    component: PlaceholderTool,
+    component: EncryptTool,
   },
   {
     id: 'security-checksum',

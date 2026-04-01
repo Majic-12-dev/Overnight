@@ -120,6 +120,8 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.invoke('archive:process', payload),
   renameImages: (payload: { outputDir: string; items: { sourcePath: string; targetName: string }[] }) =>
     ipcRenderer.invoke('image:rename', payload),
+  processSecurity: (payload: { mode: 'encrypt' | 'decrypt'; file: string; password: string; output: string }) =>
+    ipcRenderer.invoke('security:process', payload),
 })
 
 // --------- Preload scripts loading ---------

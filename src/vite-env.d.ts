@@ -154,5 +154,11 @@ interface Window {
       outputPath: string
       count: number
     }>
+    processSecurity: (payload: {
+      mode: 'encrypt' | 'decrypt'
+      file: string
+      password: string
+      output: string
+    }) => Promise<{ success: boolean; path: string }>
   }
 }
