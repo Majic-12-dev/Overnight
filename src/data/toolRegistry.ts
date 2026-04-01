@@ -42,6 +42,7 @@ import { TextMergeTool } from '@/tools/text/TextMergeTool'
 import { BulkRenamerTool } from '@/tools/file/BulkRenamerTool'
 import { ChecksumTool } from '@/tools/security/ChecksumTool'
 import { PlaceholderTool } from '@/tools/PlaceholderTool'
+import DashboardTool from '@/tools/productivity/DashboardTool'
 
 export type ToolCategory = {
   id: string
@@ -335,7 +336,7 @@ export const tools: ToolDefinition[] = [
     description: 'Launch your most-used utilities.',
     categoryId: 'productivity',
     icon: Sparkles,
-    component: PlaceholderTool,
+    component: DashboardTool,
   },
 ]
 
