@@ -29,19 +29,32 @@ const LANGUAGES = [
   { code: 'kor', name: 'Korean' },
 ] as const
 
-// Page-level OCR result with data for searchable PDF generation
-interface PageOcrResult {
+// Render scale for page rendering (higher = better quality but slower)
+const RENDER_SCALE = 1.5
+
+// Page-level OCR data with bounding boxes and image for searchable PDF generation
+interface PageOcrPage {
   pageNumber: number
   text: string
-  imageDataUrl: string
-  width: number
-  height: number
+  origWidth: number
+  origHeight: number
+  renderedWidth: number
+  renderedHeight: number
+  lines: Array<{ text: string; bbox: { x0: number; y0: number; x1: number; y1: number } }>
+  imageBlob: Blob
 }
 
-// Result from processing a single PDF file
-interface ProcessedFileResult {
+// Result from processing a single PDF file (internal)
+interface ProcessSinglePdfResult {
   text: string
-  pages: PageOcrResult[]
+  pages?: PageOcrPage[]
+}
+
+// State entry for processed files
+interface ProcessedFileEntry {
+  name: string
+  text: string
+  pdfBlobUrl?: string
 }
 
 export function PdfOcrTool({ tool }: PdfOcrToolProps) {
@@ -51,7 +64,7 @@ export function PdfOcrTool({ tool }: PdfOcrToolProps) {
   const [statusMessage, setStatusMessage] = useState<string>('')
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>(['eng'])
   const [generateSearchablePdf, setGenerateSearchablePdf] = useState(false)
-  const [processedFiles, setProcessedFiles] = useState<Array<{ name: string; result: ProcessedFileResult }>>([])
+  const [processedFiles, setProcessedFiles] = useState<ProcessedFileEntry[]>([])
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
   const handleProcess = async (
@@ -65,6 +78,10 @@ export function PdfOcrTool({ tool }: PdfOcrToolProps) {
 
     setIsProcessing(true)
     setResultText('')
+    // Revoke any existing object URLs from previous results
+    processedFiles.forEach(entry => {
+      if (entry.pdfBlobUrl) URL.revokeObjectURL(entry.pdfBlobUrl)
+    })
     setProcessedFiles([])
     context.setProgress(0)
     setStatusMessage('Starting batch OCR...')
@@ -72,7 +89,7 @@ export function PdfOcrTool({ tool }: PdfOcrToolProps) {
     try {
       const totalFiles = files.length
       const errors: Array<{ name: string; message: string }> = []
-      const allProcessed: Array<{ name: string; result: ProcessedFileResult }> = []
+      const allProcessed: ProcessedFileEntry[] = []
       // Ensure at least one language is selected
       const effectiveLanguages = selectedLanguages.length > 0 ? selectedLanguages : ['eng']
 
@@ -100,13 +117,33 @@ export function PdfOcrTool({ tool }: PdfOcrToolProps) {
         setStatusMessage(`Processing file ${fileIndex + 1} of ${totalFiles}: ${toolFile.name}`)
 
         try {
+          // Determine if we need to capture page details (for searchable PDF)
+          const shouldCapture = generateSearchablePdf
           const fileResult = await processSinglePdf(toolFile, effectiveLanguages, (fileProgress) => {
             const perFileWeight = 1 / totalFiles
             const base = (fileIndex / totalFiles) * 100
             const increment = fileProgress * perFileWeight * 100
             context.setProgress(Math.round(base + increment))
-          })
-          allProcessed.push({ name: toolFile.name, result: fileResult })
+          }, shouldCapture)
+
+          if (shouldCapture && fileResult.pages) {
+            try {
+              const blob = await createSearchablePdfForFile({ pages: fileResult.pages })
+              const pdfBlobUrl = URL.createObjectURL(blob)
+              // Keep only text and pdfBlobUrl, discard pages to free memory
+              allProcessed.push({ name: toolFile.name, text: fileResult.text, pdfBlobUrl })
+            } catch (pdfErr) {
+              console.error('PDF generation failed for', toolFile.name, pdfErr)
+              errors.push({ 
+                name: toolFile.name, 
+                message: `OCR succeeded but PDF generation failed: ${pdfErr instanceof Error ? pdfErr.message : String(pdfErr)}` 
+              })
+              // Still add text result without PDF
+              allProcessed.push({ name: toolFile.name, text: fileResult.text })
+            }
+          } else {
+            allProcessed.push({ name: toolFile.name, text: fileResult.text })
+          }
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err)
           errors.push({ name: toolFile.name, message })
@@ -114,7 +151,7 @@ export function PdfOcrTool({ tool }: PdfOcrToolProps) {
       }
 
       // Combine text for display
-      const combinedText = allProcessed.map(f => `=== ${f.name} ===\n\n${f.result.text}\n\n`).join('')
+      const combinedText = allProcessed.map(f => `=== ${f.name} ===\n\n${f.text}\n\n`).join('')
       setResultText(combinedText)
       setProcessedFiles(allProcessed)
 
@@ -170,8 +207,9 @@ export function PdfOcrTool({ tool }: PdfOcrToolProps) {
   const processSinglePdf = async (
     toolFile: { file: File; name: string },
     languages: string[],
-    onFileProgress: (progress: number) => Promise<void> | void
-  ): Promise<ProcessedFileResult> => {
+    onFileProgress: (progress: number) => void,
+    captureDetails: boolean
+  ): Promise<ProcessSinglePdfResult> => {
     const { file } = toolFile
     setStatusMessage(`Loading PDF: ${file.name}`)
 
@@ -194,39 +232,77 @@ export function PdfOcrTool({ tool }: PdfOcrToolProps) {
       }
     )
 
-    const pages: PageOcrResult[] = []
+    // We'll collect full text, and optionally detailed page data
+    let fullText = ''
+    const pages: PageOcrPage[] = []
 
     try {
       for (let i = 1; i <= numPages; i++) {
         currentPage = i
         setStatusMessage(`Processing ${file.name}: page ${i}/${numPages}`)
         const page = await pdf.getPage(i)
-        const viewport = page.getViewport({ scale: 1.5 })
+
+        // Get original dimensions (scale 1)
+        const originalViewport = page.getViewport({ scale: 1 })
+        const origWidth = originalViewport.width
+        const origHeight = originalViewport.height
+
+        // Render at higher scale for better OCR quality
+        const viewport = page.getViewport({ scale: RENDER_SCALE })
+        const renderedWidth = viewport.width
+        const renderedHeight = viewport.height
+
         const canvas = canvasRef.current
         if (!canvas) break
-        canvas.width = viewport.width
-        canvas.height = viewport.height
+        canvas.width = renderedWidth
+        canvas.height = renderedHeight
         const ctx = canvas.getContext('2d')
         if (!ctx) continue
 
         await page.render({ canvasContext: ctx, viewport }).promise
-        const imageDataUrl = canvas.toDataURL('image/jpeg', 0.8)
-        const { data: { text } } = await worker.recognize(imageDataUrl)
 
-        pages.push({
-          pageNumber: i,
-          text,
-          imageDataUrl,
-          width: viewport.width,
-          height: viewport.height,
-        })
+        // Get text from OCR
+        const imageDataUrl = canvas.toDataURL('image/jpeg', 0.8)
+        const result: any = await worker.recognize(imageDataUrl)
+        const text = result.data.text
+        const lines = result.data.lines
+
+        fullText += text + (i < numPages ? '\n' : '')
+
+        if (captureDetails) {
+          // Create a blob for the page image (high-quality JPEG)
+          const blob = await new Promise<Blob>((resolve) => {
+            canvas.toBlob((b) => resolve(b!), 'image/jpeg', 0.8)
+          })
+
+          // Map Tesseract lines to our typed structure
+          const ocrLines: Array<{ text: string; bbox: { x0: number; y0: number; x1: number; y1: number } }> = (lines || []).map((line: any) => ({
+            text: line.text,
+            bbox: {
+              x0: line.bbox.x0,
+              y0: line.bbox.y0,
+              x1: line.bbox.x1,
+              y1: line.bbox.y1,
+            },
+          }))
+
+          pages.push({
+            pageNumber: i,
+            text,
+            origWidth,
+            origHeight,
+            renderedWidth,
+            renderedHeight,
+            lines: ocrLines,
+            imageBlob: blob,
+          })
+        }
       }
     } finally {
       await worker.terminate()
     }
 
-    const fullText = pages.map(p => p.text).join('\n')
-    return { text: fullText, pages }
+    return captureDetails ? { text: fullText, pages } : { text: fullText }
   }
 
   const downloadText = () => {
@@ -240,62 +316,38 @@ export function PdfOcrTool({ tool }: PdfOcrToolProps) {
     setTimeout(() => URL.revokeObjectURL(url), 1000)
   }
 
-  const downloadSearchablePdf = async (files: Array<{ name: string; result: ProcessedFileResult }>) => {
+  const downloadSearchablePdf = async (files: ProcessedFileEntry[]) => {
     if (!files.length) return
 
     setIsGeneratingPdf(true)
     setStatusMessage('Generating searchable PDF...')
 
     try {
-      const pdfDoc = await PDFDocument.create()
-
-      for (const fileData of files) {
-        // Optional: Add a separator page with filename if multiple files
-        if (files.length > 1) {
-          const coverPage = pdfDoc.addPage()
-          coverPage.drawText(fileData.name, {
-            x: 50,
-            y: coverPage.getHeight() - 50,
-            size: 24,
-          })
-        }
-
-        for (const pageData of fileData.result.pages) {
-          const pdfPage = pdfDoc.addPage([pageData.width, pageData.height])
-
-          // Embed the page image (JPEG from canvas)
-          const jpegImage = await pdfDoc.embedJpg(pageData.imageDataUrl)
-          pdfPage.drawImage(jpegImage, {
-            x: 0,
-            y: 0,
-            width: pageData.width,
-            height: pageData.height,
-          })
-
-          // Add invisible text layer using opacity 0
-          const pageText = pageData.text.trim()
-          if (pageText) {
-            pdfPage.drawText(pageText, {
-              x: 10,
-              y: pageData.height - 20,
-              size: 10,
-              lineHeight: 12,
-              maxWidth: pageData.width - 20,
-              opacity: 0,
-              color: rgb(0, 0, 0),
-            })
-          }
-        }
+      const urls = files.map(f => f.pdfBlobUrl).filter((url): url is string => url !== undefined)
+      if (urls.length === 0) {
+        setStatusMessage('No searchable PDFs available to download.')
+        setIsGeneratingPdf(false)
+        return
       }
 
-      const pdfBytes = await pdfDoc.save()
-      const blob = new Blob([pdfBytes as unknown as BlobPart], { type: 'application/pdf' })
-      const url = URL.createObjectURL(blob)
+      let finalBlob: Blob
+      if (urls.length === 1) {
+        const response = await fetch(urls[0])
+        finalBlob = await response.blob()
+      } else {
+        finalBlob = await mergePdfs(urls)
+      }
+
+      // Download the final blob
+      const downloadUrl = URL.createObjectURL(finalBlob)
       const a = document.createElement('a')
-      a.href = url
+      a.href = downloadUrl
       a.download = 'ocr-results-searchable.pdf'
       a.click()
-      setTimeout(() => URL.revokeObjectURL(url), 1000)
+      setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000)
+
+      // Revoke the source object URLs
+      urls.forEach(url => URL.revokeObjectURL(url))
 
       setStatusMessage('Searchable PDF generated.')
     } catch (error) {
@@ -304,6 +356,61 @@ export function PdfOcrTool({ tool }: PdfOcrToolProps) {
     } finally {
       setIsGeneratingPdf(false)
     }
+  }
+
+  const createSearchablePdfForFile = async (fileResult: { pages: PageOcrPage[] }): Promise<Blob> => {
+    const pdfDoc = await PDFDocument.create()
+
+    for (const page of fileResult.pages) {
+      const pdfPage = pdfDoc.addPage([page.origWidth, page.origHeight])
+
+      // Embed the page image (JPEG from canvas)
+      const imageBuffer = await page.imageBlob.arrayBuffer() as ArrayBuffer
+      const jpegImage = await pdfDoc.embedJpg(new Uint8Array(imageBuffer))
+      pdfPage.drawImage(jpegImage, {
+        x: 0,
+        y: 0,
+        width: page.origWidth,
+        height: page.origHeight,
+      })
+
+      // Compute scale to map rendered coordinates back to original
+      const scale = page.renderedWidth / page.origWidth
+
+      // Add invisible text layer for searchability
+      for (const line of page.lines) {
+        const x = line.bbox.x0 / scale
+        const y = page.origHeight - (line.bbox.y1 / scale)
+        const lineHeight = (line.bbox.y1 - line.bbox.y0) / scale
+
+        pdfPage.drawText(line.text, {
+          x,
+          y,
+          size: lineHeight,
+          opacity: 0,
+          color: rgb(0, 0, 0),
+        })
+      }
+    }
+
+    const pdfBytes = await pdfDoc.save()
+    return new Blob([pdfBytes.buffer as ArrayBuffer], { type: 'application/pdf' })
+  }
+
+  const mergePdfs = async (blobUrls: string[]): Promise<Blob> => {
+    const pdfDoc = await PDFDocument.create()
+
+    for (const url of blobUrls) {
+      const response = await fetch(url)
+      const blob = await response.blob()
+      const arrayBuffer = await blob.arrayBuffer()
+      const srcPdf = await PDFDocument.load(arrayBuffer)
+      const copiedPages = await pdfDoc.copyPages(srcPdf, srcPdf.getPageIndices())
+      copiedPages.forEach(p => pdfDoc.addPage(p))
+    }
+
+    const mergedBytes = await pdfDoc.save()
+    return new Blob([mergedBytes.buffer as ArrayBuffer], { type: 'application/pdf' })
   }
 
   return (
@@ -328,9 +435,9 @@ export function PdfOcrTool({ tool }: PdfOcrToolProps) {
                     checked={selectedLanguages.includes(lang.code)}
                     onChange={(e) => {
                       if (e.target.checked) {
-                        setSelectedLanguages([...selectedLanguages, lang.code])
+                        setSelectedLanguages(prev => [...prev, lang.code])
                       } else {
-                        setSelectedLanguages(selectedLanguages.filter(c => c !== lang.code))
+                        setSelectedLanguages(prev => prev.filter(c => c !== lang.code))
                       }
                     }}
                     className="rounded"
