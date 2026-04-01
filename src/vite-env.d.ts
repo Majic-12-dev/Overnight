@@ -107,6 +107,15 @@ interface Window {
       outputDir: string
       items: { sourcePath: string; targetName: string }[]
     }) => Promise<{ outputDir: string; totalOutputs: number; outputs: string[] }>
+    deleteEmptyFolders: (payload: {
+      paths: string[]
+      recursive: boolean
+    }) => Promise<{
+      totalDeleted: number
+      totalRemainingEmpty: number
+      deleted: string[]
+      remainingEmpty: string[]
+    }>
     checksumFiles: (payload: {
       inputPaths: string[]
       algorithm: 'md5' | 'sha1' | 'sha256'
@@ -114,5 +123,8 @@ interface Window {
       algorithm: 'md5' | 'sha1' | 'sha256'
       items: { path: string; md5: string; sha1: string; sha256: string }[]
     }>
+    scanLargeFiles: (payload: { path: string; thresholdBytes: number }) => Promise<
+      { path: string; size: number }[]
+    >
   }
 }

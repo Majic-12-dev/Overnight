@@ -108,6 +108,8 @@ contextBridge.exposeInMainWorld('api', {
   }) => ipcRenderer.invoke('file:bulk-rename', payload),
   deleteEmptyFolders: (payload: { paths: string[]; recursive: boolean }) =>
     ipcRenderer.invoke('file:delete-empty', payload),
+  scanLargeFiles: (payload: { path: string; thresholdBytes: number }) =>
+    ipcRenderer.invoke('file:scan-large', payload),
   checksumFiles: (payload: { inputPaths: string[]; algorithm: 'md5' | 'sha1' | 'sha256' }) =>
     ipcRenderer.invoke('security:checksum', payload),
 })

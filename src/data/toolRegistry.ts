@@ -42,6 +42,7 @@ import { ColorFilterTool } from '@/tools/image/ColorFilterTool'
 import { TextMergeTool } from '@/tools/text/TextMergeTool'
 import { BulkRenamerTool } from '@/tools/file/BulkRenamerTool'
 import { EmptyFolderTool } from '@/tools/file/EmptyFolderTool'
+import { LargeFileScoutTool } from '@/tools/file/LargeFileScoutTool'
 import { ChecksumTool } from '@/tools/security/ChecksumTool'
 import { PlaceholderTool } from '@/tools/PlaceholderTool'
 import DashboardTool from '@/tools/productivity/DashboardTool'
@@ -306,7 +307,7 @@ export const tools: ToolDefinition[] = [
     description: 'Visualize large files quickly.',
     categoryId: 'file',
     icon: FileSearch,
-    component: PlaceholderTool,
+    component: LargeFileScoutTool,
   },
   {
     id: 'archive-zip',
