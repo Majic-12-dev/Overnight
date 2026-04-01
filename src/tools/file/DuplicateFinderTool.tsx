@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useRef } from 'react'
+import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
 import type { ReactNode } from 'react'
 import type { ToolDefinition } from '@/data/toolRegistry'
 import type { ToolFile } from '@/components/tools/BaseToolLayout'
@@ -29,10 +29,18 @@ export function DuplicateFinderTool({ tool }: DuplicateFinderToolProps) {
   const [files, setFiles] = useState<FileEntry[]>([])
   const [isScanning, setIsScanning] = useState(false)
   const [duplicates, setDuplicates] = useState<DuplicateGroup[]>([])
-  const [progress, setProgress] = useState(0)
-  const [currentFile, setCurrentFile] = useState<string>('')
   const [isDeleting, setIsDeleting] = useState(false)
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false)
+  const [selectedForDeletion, setSelectedForDeletion] = useState<Set<string>>(new Set())
+  const thumbnailUrlsRef = useRef<Map<string, string>>(new Map())
+
+  // Cleanup: revoke any thumbnail URLs on unmount
+  useEffect(() => {
+    return () => {
+      thumbnailUrlsRef.current.forEach(url => URL.revokeObjectURL(url))
+      thumbnailUrlsRef.current.clear()
+    }
+  }, [])
 
   // Refs to retain BaseToolLayout context callbacks after handleScan completes
   const progressContextRef = useRef<{ setProgress: (value: number) => void } | null>(null)
@@ -43,6 +51,22 @@ export function DuplicateFinderTool({ tool }: DuplicateFinderToolProps) {
     () => preferences.defaultOutputDir || 'Not set yet',
     [preferences.defaultOutputDir]
   )
+
+  // Compute totals for deletion summary
+  const totalSelected = selectedForDeletion.size
+  const totalSize = (() => {
+    let sum = 0
+    selectedForDeletion.forEach(path => {
+      for (const group of duplicates) {
+        const file = group.files.find(f => f.path === path)
+        if (file) {
+          sum += file.size
+          break
+        }
+      }
+    })
+    return sum
+  })()
 
   const handleChooseFolder = async () => {
     const selected = await window.api.selectOutputDir()
@@ -71,8 +95,38 @@ export function DuplicateFinderTool({ tool }: DuplicateFinderToolProps) {
     setDuplicates([])
   }
 
-  const openDeleteConfirmation = () => setShowDeleteConfirmation(true)
-  const closeDeleteConfirmation = () => setShowDeleteConfirmation(false)
+  const openDeleteConfirmation = () => {
+    // Initialize selection: all but the first file in each group are selected for deletion
+    const newSelection = new Set<string>()
+    duplicates.forEach(group => {
+      group.files.slice(1).forEach(f => newSelection.add(f.path))
+    })
+    setSelectedForDeletion(newSelection)
+
+    // Generate thumbnails for image files
+    const thumbnails = new Map<string, string>()
+    duplicates.forEach(group => {
+      group.files.forEach(file => {
+        if (file.file.type.startsWith('image/')) {
+          const url = URL.createObjectURL(file.file)
+          thumbnails.set(file.path, url)
+        }
+      })
+    })
+    // Revoke any previous thumbnails
+    if (thumbnailUrlsRef.current) {
+      thumbnailUrlsRef.current.forEach(url => URL.revokeObjectURL(url))
+    }
+    thumbnailUrlsRef.current = thumbnails
+    setShowDeleteConfirmation(true)
+  }
+
+  const closeDeleteConfirmation = () => {
+    // Revoke thumbnails
+    thumbnailUrlsRef.current.forEach(url => URL.revokeObjectURL(url))
+    thumbnailUrlsRef.current.clear()
+    setShowDeleteConfirmation(false)
+  }
 
   // Simple hash using Web Crypto API
   const hashFile = async (file: File): Promise<string> => {
@@ -82,17 +136,16 @@ export function DuplicateFinderTool({ tool }: DuplicateFinderToolProps) {
     return hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
   }
 
-  const performDeleteDuplicates = async () => {
+  const performDeleteDuplicates = async (pathsToDelete: string[]) => {
     if (!window.api?.deleteFiles) {
       errorContextRef.current?.setError('File deletion is not available in this build.')
-      setShowDeleteConfirmation(false)
+      closeDeleteConfirmation()
       return
     }
 
-    const totalDuplicates = duplicates.reduce((sum, group) => sum + group.files.length - 1, 0)
-    if (totalDuplicates === 0) {
-      errorContextRef.current?.setError('No duplicates to delete.')
-      setShowDeleteConfirmation(false)
+    if (pathsToDelete.length === 0) {
+      errorContextRef.current?.setError('No files selected for deletion.')
+      closeDeleteConfirmation()
       return
     }
 
@@ -100,8 +153,8 @@ export function DuplicateFinderTool({ tool }: DuplicateFinderToolProps) {
     progressContextRef.current?.setProgress(0)
 
     try {
-      // Build list of files to delete: all but the first in each group
-      const toDelete = duplicates.flatMap(g => g.files.slice(1).map(f => ({ sourcePath: f.path })))
+      // Build list of files to delete based on user selection
+      const toDelete = pathsToDelete.map(p => ({ sourcePath: p }))
 
       const result = await window.api.deleteFiles({ items: toDelete })
       const results = result?.results || []
@@ -158,7 +211,7 @@ export function DuplicateFinderTool({ tool }: DuplicateFinderToolProps) {
       errorContextRef.current?.setError(error instanceof Error ? error.message : 'Failed to delete files.')
     } finally {
       setIsDeleting(false)
-      setShowDeleteConfirmation(false)
+      closeDeleteConfirmation()
     }
   }
 
@@ -174,7 +227,6 @@ export function DuplicateFinderTool({ tool }: DuplicateFinderToolProps) {
       return
     }
 
-    setProgress(0)
     setDuplicates([])
 
     try {
@@ -347,7 +399,11 @@ export function DuplicateFinderTool({ tool }: DuplicateFinderToolProps) {
           <Card className="w-full max-w-2xl max-h-[80vh] overflow-y-auto p-4 space-y-4">
             <h2 className="text-lg font-bold">Confirm Deletion</h2>
             <div className="text-sm text-muted">
-              The following duplicate groups will be processed. The first file in each group will be kept, the others deleted.
+              Select the duplicate files you want to delete. The first file in each group is protected and cannot be deleted.
+            </div>
+            {/* Summary */}
+            <div className="text-sm font-semibold">
+              {totalSelected} file{totalSelected !== 1 ? 's' : ''} selected, {formatBytes(totalSize)} to be freed
             </div>
             <div className="space-y-3">
               {duplicates.map((group, idx) => (
@@ -356,31 +412,53 @@ export function DuplicateFinderTool({ tool }: DuplicateFinderToolProps) {
                     Hash: {group.hash.substring(0, 16)}...
                   </div>
                   <div className="space-y-1">
-                    <div className="flex items-start text-xs">
-                      <span className="font-semibold text-green-500 min-w-24">Keep:</span>
-                      <span className="font-mono text-text truncate">{group.files[0]?.path}</span>
-                      <span className="ml-auto text-muted">{formatBytes(group.files[0]?.size || 0)}</span>
-                    </div>
-                    {group.files.slice(1).map((file, fidx) => (
-                      <div key={fidx} className="flex items-start text-xs">
-                        <span className="font-semibold text-red-500 min-w-24">Delete:</span>
-                        <span className="font-mono text-text truncate">{file.path}</span>
-                        <span className="ml-auto text-muted">{formatBytes(file.size)}</span>
-                      </div>
-                    ))}
+                    {group.files.map((file, fidx) => {
+                      const isFirst = fidx === 0
+                      const isSelected = selectedForDeletion.has(file.path)
+                      const thumbnailUrl = thumbnailUrlsRef.current?.get(file.path)
+                      return (
+                        <div key={fidx} className="flex items-start text-xs gap-2">
+                          <input
+                            type="checkbox"
+                            checked={isFirst ? false : isSelected}
+                            disabled={isFirst}
+                            onChange={() => {
+                              if (isFirst) return
+                              setSelectedForDeletion(prev => {
+                                const next = new Set(prev)
+                                if (next.has(file.path)) {
+                                  next.delete(file.path)
+                                } else {
+                                  next.add(file.path)
+                                }
+                                return next
+                              })
+                            }}
+                            className="mt-1"
+                            aria-label={`Select ${file.path} for deletion`}
+                          />
+                          {thumbnailUrl && (
+                            <img src={thumbnailUrl} alt={`Thumbnail of ${file.path}`} className="w-8 h-8 object-cover flex-shrink-0" />
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <div className={`font-mono truncate ${isFirst ? 'text-green-500 font-semibold' : 'text-text'}`}>
+                              {file.path}
+                            </div>
+                          </div>
+                          <div className="text-muted ml-2">{formatBytes(file.size)}</div>
+                        </div>
+                      )
+                    })}
                   </div>
                 </div>
               ))}
             </div>
-            <div className="text-sm font-semibold">
-              Total files to delete: {duplicates.reduce((sum, group) => sum + group.files.length - 1, 0)}
-            </div>
-            <div className="flex justify-end gap-2">
+            <div className="flex justify-end gap-2 pt-2">
               <Button variant="outline" onClick={closeDeleteConfirmation} disabled={isDeleting}>
                 Cancel
               </Button>
-              <Button variant="primary" onClick={performDeleteDuplicates} disabled={isDeleting}>
-                {isDeleting ? 'Deleting...' : 'Confirm Delete'}
+              <Button variant="primary" onClick={() => performDeleteDuplicates(Array.from(selectedForDeletion))} disabled={isDeleting || totalSelected === 0}>
+                {isDeleting ? 'Deleting...' : `Delete Selected (${totalSelected})`}
               </Button>
             </div>
             {isDeleting && (
