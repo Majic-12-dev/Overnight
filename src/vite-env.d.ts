@@ -157,6 +157,9 @@ interface Window {
       deleted: string[]
       remainingEmpty: string[]
     }>
+    deleteFiles: (payload: { items: { sourcePath: string }[] }) => Promise<{
+      results: Array<{ sourcePath: string; success: boolean; error?: string; quarantinedPath?: string }>
+    }>
     checksumFiles: (payload: {
       inputPaths: string[]
       algorithm: 'md5' | 'sha1' | 'sha256'

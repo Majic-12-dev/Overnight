@@ -126,6 +126,8 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.invoke('file:delete-empty', payload),
   scanLargeFiles: (payload: { path: string; thresholdBytes: number }) =>
     ipcRenderer.invoke('file:scan-large', payload),
+  deleteFiles: (payload: { items: { sourcePath: string }[] }) =>
+    ipcRenderer.invoke('file:delete', payload),
   checksumFiles: (payload: { inputPaths: string[]; algorithm: 'md5' | 'sha1' | 'sha256' }) =>
     ipcRenderer.invoke('security:checksum', payload),
   processArchive: (payload: { mode: 'zip' | 'unzip'; sources: string[]; outputPath: string }) =>

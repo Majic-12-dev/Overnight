@@ -141,11 +141,24 @@ async function isDirectoryEmpty(dirPath: string): Promise<boolean> {
   }
 }
 
-function sanitizeFileName(name: string) {
-  return name.replace(/[<>:\"/\\|?*]+/g, '_').trim()
+function sanitizeFileName(name: string): string {
+  if (name.includes('\0')) {
+    throw new Error('Invalid file name: contains null byte')
+  }
+  // Strip leading dots (hidden/traversal protection)
+  name = name.replace(/^\.+/, '')
+  // Replace invalid characters
+  name = name.replace(/[<>:\"/\\|?*]+/g, '_')
+  // Trim whitespace
+  name = name.trim()
+  // Ensure non-empty
+  if (!name) {
+    name = 'file'
+  }
+  return name
 }
 
-async function uniquePath(targetPath: string) {
+async function uniquePath(targetPath: string, maxAttempts: number = 1000): Promise<string> {
   const parsed = path.parse(targetPath)
   let attempt = 0
   let candidate = targetPath
@@ -153,6 +166,9 @@ async function uniquePath(targetPath: string) {
     try {
       await fs.access(candidate)
       attempt += 1
+      if (attempt >= maxAttempts) {
+        throw new Error(`Maximum attempts (${maxAttempts}) exceeded for generating unique path for ${targetPath}`)
+      }
       candidate = path.join(parsed.dir, `${parsed.name}(${attempt})${parsed.ext}`)
     } catch {
       return candidate
@@ -241,6 +257,101 @@ export async function organizeFiles({ inputPaths, outputDir, rule }: OrganizeFil
   }
 
   return { count: results.length, outputDir, results }
+}
+
+export type DeleteFilesPayload = {
+  items: { sourcePath: string }[]
+  trashBaseDir: string
+}
+
+export type DeleteFileResult = {
+  sourcePath: string
+  success: boolean
+  error?: string
+  quarantinedPath?: string
+}
+
+export async function deleteFiles(
+  { items }: { items: { sourcePath: string }[] },
+  trashBaseDir: string
+): Promise<{ results: DeleteFileResult[] }> {
+  if (!items.length) {
+    throw new Error('No files provided.')
+  }
+
+  // Create timestamped quarantine directory
+  const now = new Date()
+  const timestampStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`
+
+  const trashDir = path.join(trashBaseDir, timestampStr)
+  await ensureDir(trashDir)
+
+  const results: DeleteFileResult[] = []
+
+  for (const item of items) {
+    const { sourcePath } = item
+    try {
+      // Check if file exists and is a file, with error categorization
+      try {
+        const stats = await fs.stat(sourcePath)
+        if (!stats.isFile()) {
+          results.push({ sourcePath, success: false, error: 'Not a file or does not exist' })
+          continue
+        }
+      } catch (statError) {
+        // Categorize errors from stat
+        let errorMessage: string
+        if (statError instanceof Error) {
+          const nodeError = statError as NodeJS.ErrnoException
+          if (nodeError.code === 'ENOENT') {
+            errorMessage = 'File not found'
+          } else if (nodeError.code === 'EACCES' || nodeError.code === 'EPERM') {
+            errorMessage = 'Permission denied'
+          } else {
+            errorMessage = statError.message
+          }
+        } else {
+          errorMessage = String(statError)
+        }
+        results.push({ sourcePath, success: false, error: errorMessage })
+        continue
+      }
+
+      // Compute target path
+      const fileName = path.basename(sourcePath)
+      const safeName = sanitizeFileName(fileName)
+      const targetPath = await uniquePath(path.join(trashDir, safeName))
+
+      // Check if source and target are the same file (after resolving)
+      const resolvedSource = path.resolve(sourcePath)
+      const resolvedTarget = path.resolve(targetPath)
+      if (resolvedSource === resolvedTarget) {
+        // Already in quarantine? Treat as success without operation.
+        results.push({ sourcePath, success: true, quarantinedPath: targetPath })
+        continue
+      }
+
+      // Attempt rename, with EXDEV fallback
+      try {
+        await fs.rename(sourcePath, targetPath)
+      } catch (renameError) {
+        if (renameError instanceof Error && 'code' in renameError && renameError.code === 'EXDEV') {
+          await fs.copyFile(sourcePath, targetPath)
+          await fs.unlink(sourcePath)
+        } else {
+          throw renameError
+        }
+      }
+
+      results.push({ sourcePath, success: true, quarantinedPath: targetPath })
+    } catch (error) {
+      // Any other error during file operations
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      results.push({ sourcePath, success: false, error: errorMessage })
+    }
+  }
+
+  return { results }
 }
 
 function getExtension(filePath: string): string {

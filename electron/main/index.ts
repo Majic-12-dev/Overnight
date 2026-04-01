@@ -25,7 +25,7 @@ import {
   renameImages,
 } from './tools/image'
 import { mergeTextFiles } from './tools/text'
-import { bulkRename, deleteEmptyFolders, scanLargeFiles, organizeFiles } from './tools/file'
+import { bulkRename, deleteEmptyFolders, scanLargeFiles, organizeFiles, deleteFiles } from './tools/file'
 import { checksumFiles, processSecurity } from './tools/security'
 import { processArchive } from './tools/archive'
 import { ensureDir } from './utils/fs'
@@ -211,6 +211,11 @@ ipcMain.handle('file:bulk-rename', async (_, payload) => bulkRename(payload))
 ipcMain.handle('file:delete-empty', async (_, payload) => deleteEmptyFolders(payload))
 ipcMain.handle('file:scan-large', async (_, payload) => scanLargeFiles(payload))
 ipcMain.handle('file:organize', async (_, payload) => organizeFiles(payload))
+ipcMain.handle('file:delete', async (_, payload: { items: { sourcePath: string }[] }) => {
+  const documentsDir = app.getPath('documents')
+  const trashBaseDir = path.join(documentsDir, 'DocFlow Pro', '.docflow_trash')
+  return deleteFiles({ items: payload.items }, trashBaseDir)
+})
 
 ipcMain.handle('security:checksum', async (_, payload) => checksumFiles(payload))
 ipcMain.handle('security:process', async (_, payload) => processSecurity(payload))
