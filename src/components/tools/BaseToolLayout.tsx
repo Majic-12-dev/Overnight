@@ -45,6 +45,7 @@ type BaseToolLayoutProps = {
   accept?: string
   instructions?: string
   maxFiles?: number
+  maxFileSize?: number
   reorderable?: boolean
   onProcess?: (files: ToolFile[], context: ProcessContext) => Promise<void> | void
   options?: ReactNode
@@ -61,6 +62,7 @@ export function BaseToolLayout({
   accept,
   instructions = 'Drop files here or click to browse your device.',
   maxFiles = Infinity,
+  maxFileSize = 500 * 1024 * 1024, // 500 MB default
   reorderable = false,
   onProcess,
   options,
@@ -105,10 +107,25 @@ export function BaseToolLayout({
       path: (file as File & { path?: string }).path,
       lastModified: file.lastModified,
     }))
+    // Filter out files exceeding maxFileSize
+    const allowed: typeof mapped = []
+    const rejected: typeof mapped = []
+    mapped.forEach((item) => {
+      if (item.file.size <= maxFileSize) {
+        allowed.push(item)
+      } else {
+        rejected.push(item)
+      }
+    })
+    if (rejected.length > 0) {
+      const names = rejected.map(r => r.name).join(', ')
+      const limit = formatBytes(maxFileSize)
+      setError(`${rejected.length} file(s) exceed the size limit of ${limit} and were rejected: ${names}`)
+    }
     setFiles((prev) => {
       const existingKeys = new Set(prev.map(toKey))
       const merged = [...prev]
-      mapped.forEach((item) => {
+      allowed.forEach((item) => {
         const key = toKey(item)
         if (!existingKeys.has(key)) {
           merged.push(item)
