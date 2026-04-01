@@ -1,7 +1,15 @@
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
-import { PDFDocument, degrees, rgb } from 'pdf-lib'
+import { PDFDocument, degrees, rgb, EncryptOptions } from 'pdf-lib'
 import { ensureDir } from '../utils/fs'
+
+const PERMISSION_MAP = {
+  print: { allowed: 'print_allowed' as const, denied: 'not_allowed' as const },
+  modify: { allowed: 'modify_allowed' as const, denied: 'not_allowed' as const },
+  copy: { allowed: 'copy_allowed' as const, denied: 'not_allowed' as const },
+  annotate: { allowed: 'annotate_allowed' as const, denied: 'not_allowed' as const },
+  form: { allowed: 'form_allowed' as const, denied: 'not_allowed' as const },
+} as const;
 
 export type MergePdfPayload = {
   inputPaths: string[]
@@ -292,7 +300,27 @@ export async function updateMetadata({ inputPaths, outputDir, metadata }: Metada
   return { outputDir, totalOutputs: outputs.length, outputs }
 }
 
-export async function unlockPdf({ inputPaths, outputDir, password }: UnlockPdfPayload) {
+export type EncryptPdfPayload = {
+  inputPaths: string[]
+  outputDir: string
+  userPassword?: string
+  ownerPassword?: string
+  permissions: {
+    print: boolean
+    modify: boolean
+    copy: boolean
+    annotate: boolean
+    form: boolean
+  }
+}
+
+export async function encryptPdf({
+  inputPaths,
+  outputDir,
+  userPassword,
+  ownerPassword,
+  permissions,
+}: EncryptPdfPayload) {
   if (!inputPaths.length) {
     throw new Error('No PDF files provided.')
   }
@@ -301,11 +329,24 @@ export async function unlockPdf({ inputPaths, outputDir, password }: UnlockPdfPa
 
   for (const filePath of inputPaths) {
     const bytes = await fs.readFile(filePath)
-    const doc = await PDFDocument.load(bytes, { ignoreEncryption: true })
+    const doc = await PDFDocument.load(bytes, { ignoreEncryption: false })
+
+    const encryptOptions: EncryptOptions = {
+      userPassword: userPassword || undefined,
+      ownerPassword: ownerPassword || undefined,
+      permissions: {
+        print: permissions.print ? PERMISSION_MAP.print.allowed : PERMISSION_MAP.print.denied,
+        modify: permissions.modify ? PERMISSION_MAP.modify.allowed : PERMISSION_MAP.modify.denied,
+        copy: permissions.copy ? PERMISSION_MAP.copy.allowed : PERMISSION_MAP.copy.denied,
+        annotate: permissions.annotate ? PERMISSION_MAP.annotate.allowed : PERMISSION_MAP.annotate.denied,
+        form: permissions.form ? PERMISSION_MAP.form.allowed : PERMISSION_MAP.form.denied,
+      },
+    }
+
     const baseName = path.parse(filePath).name
-    const outputPath = path.join(outputDir, `${sanitizeFileName(baseName)}_unlocked.pdf`)
+    const outputPath = path.join(outputDir, `${sanitizeFileName(baseName)}_encrypted.pdf`)
     await ensureDir(outputDir)
-    await fs.writeFile(outputPath, await doc.save())
+    await fs.writeFile(outputPath, await doc.save({ encrypt: encryptOptions }))
     outputs.push(outputPath)
   }
 

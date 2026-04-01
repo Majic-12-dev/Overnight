@@ -11,8 +11,8 @@ import {
   rotatePdf,
   watermarkPdf,
   updateMetadata,
-  unlockPdf,
   compressPdf,
+  encryptPdf,
 } from './tools/pdf'
 import {
   convertImages,
@@ -192,7 +192,7 @@ ipcMain.handle('pdf:split', async (_, payload) => splitPdf(payload))
 ipcMain.handle('pdf:rotate', async (_, payload) => rotatePdf(payload))
 ipcMain.handle('pdf:watermark', async (_, payload) => watermarkPdf(payload))
 ipcMain.handle('pdf:metadata', async (_, payload) => updateMetadata(payload))
-ipcMain.handle('pdf:unlock', async (_, payload) => unlockPdf(payload))
+ipcMain.handle('pdf:encrypt', async (_, payload) => encryptPdf(payload))
 ipcMain.handle('pdf:compress', async (_, payload) => compressPdf(payload))
 
 ipcMain.handle('image:convert', async (_, payload) => convertImages(payload))

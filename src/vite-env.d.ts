@@ -55,6 +55,19 @@ interface Window {
       outputDir: string
       password: string
     }) => Promise<{ outputDir: string; totalOutputs: number; outputs: string[] }>
+    encryptPdf: (payload: {
+      inputPaths: string[]
+      outputDir: string
+      userPassword?: string
+      ownerPassword?: string
+      permissions: {
+        print: boolean
+        modify: boolean
+        copy: boolean
+        annotate: boolean
+        form: boolean
+      }
+    }) => Promise<{ outputDir: string; totalOutputs: number; outputs: string[] }>
     compressPdf: (payload: {
       inputPaths: string[]
       outputDir: string

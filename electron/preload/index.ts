@@ -18,9 +18,6 @@ contextBridge.exposeInMainWorld('ipcRenderer', {
     const [channel, ...omit] = args
     return ipcRenderer.invoke(channel, ...omit)
   },
-
-  // You can expose other APTs you need here.
-  // ...
 })
 
 contextBridge.exposeInMainWorld('api', {
@@ -67,6 +64,19 @@ contextBridge.exposeInMainWorld('api', {
   }) => ipcRenderer.invoke('pdf:metadata', payload),
   unlockPdf: (payload: { inputPaths: string[]; outputDir: string; password: string }) =>
     ipcRenderer.invoke('pdf:unlock', payload),
+  encryptPdf: (payload: {
+    inputPaths: string[]
+    outputDir: string
+    userPassword?: string
+    ownerPassword?: string
+    permissions: {
+      print: boolean
+      modify: boolean
+      copy: boolean
+      annotate: boolean
+      form: boolean
+    }
+  }) => ipcRenderer.invoke('pdf:encrypt', payload),
   compressPdf: (payload: { inputPaths: string[]; outputDir: string; level: 'low' | 'medium' | 'high' }) =>
     ipcRenderer.invoke('pdf:compress', payload),
   convertImages: (payload: {
