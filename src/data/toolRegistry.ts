@@ -38,7 +38,6 @@ import { RepairPdfTool } from '@/tools/pdf/RepairPdfTool'
 import { PdfOcrTool } from '@/tools/pdf/PdfOcrTool'
 import { PdfPasswordTool } from '@/tools/pdf/PdfPasswordTool'
 import { ArchiveZipTool } from '@/tools/archive/ArchiveZipTool'
-import { PlaceholderTool } from '@/tools/PlaceholderTool'
 import { ImageConvertTool } from '@/tools/image/ImageConvertTool'
 import { ImageResizeTool } from '@/tools/image/ImageResizeTool'
 import { ImageCompressTool } from '@/tools/image/ImageCompressTool'
@@ -150,7 +149,7 @@ export const tools: ToolDefinition[] = [
     description: 'Extract text from scanned PDFs offline.',
     categoryId: 'pdf',
     icon: ScanText,
-    component: PlaceholderTool,
+    component: PdfOcrTool,
   },
   {
     id: 'pdf-watermark',
@@ -182,7 +181,7 @@ export const tools: ToolDefinition[] = [
     description: 'Encrypt PDFs with strong passwords.',
     categoryId: 'pdf',
     icon: FileKey,
-    component: PlaceholderTool,
+    component: PdfPasswordTool,
   },
   {
     id: 'pdf-unlock',
@@ -198,7 +197,7 @@ export const tools: ToolDefinition[] = [
     description: 'Attempt recovery of corrupted PDFs.',
     categoryId: 'pdf',
     icon: FileSearch,
-    component: PlaceholderTool,
+    component: RepairPdfTool,
   },
   {
     id: 'image-convert',
@@ -262,7 +261,7 @@ export const tools: ToolDefinition[] = [
     description: 'Remove backgrounds locally in browser.',
     categoryId: 'image',
     icon: Sparkles,
-    component: PlaceholderTool,
+    component: BackgroundRemoverTool,
   },
   {
     id: 'text-merge',
@@ -286,7 +285,7 @@ export const tools: ToolDefinition[] = [
     description: 'Find duplicates by size and hash.',
     categoryId: 'file',
     icon: FileSearch,
-    component: PlaceholderTool,
+    component: DuplicateFinderTool,
   },
   {
     id: 'file-renamer',
