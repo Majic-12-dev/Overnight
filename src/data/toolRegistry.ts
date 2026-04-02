@@ -3,7 +3,9 @@ import type { LucideIcon } from 'lucide-react'
 import {
   Archive,
   BadgeCheck,
+  ArrowLeftRight,
   Braces,
+  Clock,
   Combine,
   Diff,
   FileArchive,
@@ -22,12 +24,16 @@ import {
   ImageUp,
   KeyRound,
   Layers,
+  Palette,
   PencilRuler,
   QrCode,
+  Regex,
   ScanText,
   Shield,
   Sparkles,
   SplitSquareVertical,
+  Table,
+  Table2,
   TextCursorInput,
   Wand2,
 } from 'lucide-react'
@@ -60,12 +66,18 @@ import { BulkRenamerTool } from '@/tools/file/BulkRenamerTool'
 import { EmptyFolderTool } from '@/tools/file/EmptyFolderTool'
 import { LargeFileScoutTool } from '@/tools/file/LargeFileScoutTool'
 import { DuplicateFinderTool } from '@/tools/file/DuplicateFinderTool'
+import { CsvConverterTool } from '@/tools/file/CsvConverterTool'
 import { ChecksumTool } from '@/tools/security/ChecksumTool'
+import { MarkdownTableTool } from '@/tools/text/MarkdownTableTool'
 import { EncryptTool } from '@/tools/security/EncryptTool'
 import { FileOrganizerTool } from '@/tools/file/FileOrganizerTool'
 import DashboardTool from '@/tools/productivity/DashboardTool'
 import { QrCodeGeneratorTool } from '@/tools/productivity/QrCodeGeneratorTool'
 import { PasswordGeneratorTool } from '@/tools/security/PasswordGeneratorTool'
+import { UnitConverterTool } from '@/tools/productivity/UnitConverterTool'
+import { ColorPaletteTool } from '@/tools/productivity/ColorPaletteTool'
+import { TimestampConverterTool } from '@/tools/text/TimestampConverterTool'
+import { RegexTesterTool } from '@/tools/text/RegexTesterTool'
 
 export type ToolCategory = {
   id: string
@@ -408,6 +420,54 @@ export const tools: ToolDefinition[] = [
     categoryId: 'security',
     icon: KeyRound,
     component: PasswordGeneratorTool,
+  },
+  {
+    id: 'csv-converter',
+    name: 'CSV Converter',
+    description: 'Convert between CSV and JSON formats with validation.',
+    categoryId: 'file',
+    icon: Table2,
+    component: CsvConverterTool,
+  },
+  {
+    id: 'markdown-table',
+    name: 'Markdown Table Generator',
+    description: 'Build and export markdown tables with live preview.',
+    categoryId: 'text',
+    icon: Table,
+    component: MarkdownTableTool,
+  },
+  {
+    id: 'unit-converter',
+    name: 'Unit Converter',
+    description: 'Convert between length, weight, temperature, speed, data, and time units.',
+    categoryId: 'productivity',
+    icon: ArrowLeftRight,
+    component: UnitConverterTool,
+  },
+  {
+    id: 'regex-tester',
+    name: 'Regex Tester',
+    description: 'Test regular expressions with flags, match highlighting, and replace.',
+    categoryId: 'text',
+    icon: Regex,
+    component: RegexTesterTool,
+  },
+  {
+    id: 'color-palette',
+    name: 'Color Palette Generator',
+    description: 'Generate harmonious color palettes using complementary, analogous, triadic, and split-complementary modes.',
+    categoryId: 'productivity',
+    icon: Palette,
+    component: ColorPaletteTool,
+  },
+  {
+    id: 'timestamp-converter',
+    name: 'Timestamp Converter',
+    description: 'Convert Unix timestamps to local date/time and ISO 8601, or convert date strings to timestamps.',
+    categoryId: 'text',
+    icon: Clock,
+    component: TimestampConverterTool,
   },
 ]
 
