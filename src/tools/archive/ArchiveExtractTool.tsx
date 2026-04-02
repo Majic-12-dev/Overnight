@@ -377,6 +377,9 @@ function ArchiveFileView({
     return buildTree(view.entries)
   }, [view.entries, view.status])
 
+  // Roving tabindex: track which treeitem is currently focused
+  const [focusedPath, setFocusedPath] = useState<string>('')
+
   if (view.status === 'error') {
     return (
       <div className="mt-4 rounded-lg border border-red-500/30 bg-red-500/10 p-3">
@@ -418,7 +421,11 @@ function ArchiveFileView({
         </div>
       </div>
 
-      <div className="max-h-96 overflow-y-auto rounded-lg border border-border bg-base/40">
+      <div
+        className="max-h-96 overflow-y-auto rounded-lg border border-border bg-base/40"
+        role="tree"
+        aria-label={`${view.name} archive contents`}
+      >
         {tree && (
           <TreeItem
             node={tree}
@@ -428,6 +435,9 @@ function ArchiveFileView({
             onExtract={onExtract}
             extracting={extracting}
             onSetExtracting={setExtracting}
+            treeLabel={view.name}
+            focusedPath={focusedPath}
+            onSetFocusedPath={setFocusedPath}
           />
         )}
         {view.entries.length === 0 && (
@@ -499,6 +509,14 @@ function sortTree(node: TreeNode) {
   }
 }
 
+// ─── Keyboard Navigation Helper ─────────────────────────────────────────────
+
+function getVisibleTreeItems(container: Element): HTMLElement[] {
+  return Array.from(container.querySelectorAll('[data-treeitem-path]'))
+}
+
+// ─── Tree Item Component ────────────────────────────────────────────────────
+
 function TreeItem({
   node,
   depth,
@@ -507,6 +525,9 @@ function TreeItem({
   onExtract,
   extracting,
   onSetExtracting,
+  treeLabel,
+  focusedPath,
+  onSetFocusedPath,
 }: {
   node: TreeNode
   depth: number
@@ -515,31 +536,123 @@ function TreeItem({
   onExtract: (path: string) => void
   extracting: Set<string>
   onSetExtracting: React.Dispatch<React.SetStateAction<Set<string>>>
+  treeLabel?: string
+  focusedPath: string
+  onSetFocusedPath: (path: string) => void
 }) {
   const isDir = node.type === 'directory'
   const isExpanded = isDir && expandedDirs.has(node.path)
 
+  // Label for screen readers
+  const ariaLabel = useMemo(() => {
+    if (!node.name) return treeLabel || 'Archive root'
+    return `${node.name}${isDir ? ' (folder)' : ''}`
+  }, [node.name, isDir, treeLabel])
+
+  // Keyboard navigation handler
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      const container = e.currentTarget.closest('[role="tree"]')
+      if (!container) return
+
+      switch (e.key) {
+        case 'ArrowDown': {
+          e.preventDefault()
+          const items = getVisibleTreeItems(container)
+          const current = e.currentTarget as HTMLElement
+          const idx = items.indexOf(current)
+          if (idx < items.length - 1) {
+            items[idx + 1].focus()
+          }
+          break
+        }
+        case 'ArrowUp': {
+          e.preventDefault()
+          const items = getVisibleTreeItems(container)
+          const current = e.currentTarget as HTMLElement
+          const idx = items.indexOf(current)
+          if (idx > 0) {
+            items[idx - 1].focus()
+          }
+          break
+        }
+        case 'ArrowRight': {
+          e.preventDefault()
+          if (isDir && !isExpanded) {
+            onToggleDir(node.path)
+          }
+          break
+        }
+        case 'ArrowLeft': {
+          e.preventDefault()
+          if (isDir && isExpanded) {
+            onToggleDir(node.path)
+          }
+          break
+        }
+        case 'Home': {
+          e.preventDefault()
+          const items = getVisibleTreeItems(container)
+          if (items.length > 0) items[0].focus()
+          break
+        }
+        case 'End': {
+          e.preventDefault()
+          const items = getVisibleTreeItems(container)
+          if (items.length > 0) items[items.length - 1].focus()
+          break
+        }
+        case 'Enter':
+        case ' ': {
+          e.preventDefault()
+          if (isDir) {
+            onToggleDir(node.path)
+          }
+          break
+        }
+        case 'Escape': {
+          e.preventDefault()
+          if (isDir && isExpanded) {
+            onToggleDir(node.path)
+          }
+          break
+        }
+      }
+    },
+    [isDir, isExpanded, node.path, onToggleDir]
+  )
+
   return (
     <div>
       <div
-        className="flex items-center gap-1 px-2 py-1.5 text-xs hover:bg-base/80 cursor-pointer"
+        role="treeitem"
+        tabIndex={focusedPath === node.path ? 0 : -1}
+        data-treeitem-path={node.path}
+        aria-label={ariaLabel}
+        aria-expanded={isDir ? isExpanded : undefined}
+        aria-level={depth + 1}
+        className="flex items-center gap-1 px-2 py-1.5 text-xs hover:bg-base/80 cursor-pointer
+          focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent
+          focus-visible:ring-offset-1 focus-visible:ring-offset-base/40 rounded"
         style={{ paddingLeft: `${depth * 12 + 4}px` }}
         onClick={() => isDir && onToggleDir(node.path)}
+        onKeyDown={handleKeyDown}
+        onFocus={() => onSetFocusedPath(node.path)}
       >
         {isDir ? (
           isExpanded ? (
-            <ChevronDown className="h-3 w-3 text-muted shrink-0" />
+            <ChevronDown className="h-3 w-3 text-muted shrink-0" aria-hidden="true" />
           ) : (
-            <ChevronRight className="h-3 w-3 text-muted shrink-0" />
+            <ChevronRight className="h-3 w-3 text-muted shrink-0" aria-hidden="true" />
           )
         ) : (
-          <span className="h-3 w-3 shrink-0" />
+          <span className="h-3 w-3 shrink-0" aria-hidden="true" />
         )}
 
         {isDir ? (
-          <Folder className="h-3 w-3 text-amber-500 shrink-0" />
+          <Folder className="h-3 w-3 text-amber-500 shrink-0" aria-hidden="true" />
         ) : (
-          <File className="h-3 w-3 text-muted shrink-0" />
+          <File className="h-3 w-3 text-muted shrink-0" aria-hidden="true" />
         )}
 
         <span className="truncate text-text">{node.name}</span>
@@ -552,7 +665,20 @@ function TreeItem({
 
         {!isDir && node.entry && (
           <button
-            className="ml-2 shrink-0 rounded text-xs text-accent hover:text-accent/80"
+            className="ml-2 shrink-0 rounded text-xs text-accent hover:text-accent/80
+              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent
+              focus-visible:ring-offset-1"
+            aria-label={`Extract ${node.name}`}
+            tabIndex={-1}
+            onFocus={() => onSetFocusedPath(node.path)}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') {
+                e.preventDefault()
+                // Return focus to parent treeitem for proper roving tabindex flow
+                const treeItem = e.currentTarget.closest('[role="treeitem"]') as HTMLElement | null
+                treeItem?.focus()
+              }
+            }}
             onClick={async (e) => {
               e.stopPropagation()
               onSetExtracting(prev => new Set(prev).add(node.path))
@@ -569,16 +695,16 @@ function TreeItem({
             disabled={extracting.has(node.path)}
           >
             {extracting.has(node.path) ? (
-              <Loader2 className="h-3 w-3 animate-spin" />
+              <Loader2 className="h-3 w-3 animate-spin" aria-hidden="true" />
             ) : (
-              <Download className="h-3 w-3" />
+              <Download className="h-3 w-3" aria-hidden="true" />
             )}
           </button>
         )}
       </div>
 
       {isDir && isExpanded && node.children && (
-        <div>
+        <div role="group">
           {node.children.map(child => (
             <TreeItem
               key={child.path}
@@ -589,6 +715,9 @@ function TreeItem({
               onExtract={onExtract}
               extracting={extracting}
               onSetExtracting={onSetExtracting}
+              treeLabel={treeLabel}
+              focusedPath={focusedPath}
+              onSetFocusedPath={onSetFocusedPath}
             />
           ))}
         </div>

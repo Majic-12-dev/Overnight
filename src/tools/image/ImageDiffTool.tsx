@@ -1,268 +1,201 @@
-import { useCallback, useRef, useState } from 'react'
+import { useState, useCallback } from 'react'
 import type { ToolDefinition } from '@/data/toolRegistry'
 import { BaseToolLayout } from '@/components/tools/BaseToolLayout'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { Card } from '@/components/ui/Card'
-import { Layers, Download, ImageOff } from 'lucide-react'
+import { Layers, Download, ImageOff, AlertCircle } from 'lucide-react'
 
-type ToolProps = {
-  tool: ToolDefinition
-}
+export default function ImageDiffTool({ tool }: { tool: ToolDefinition }) {
+  const [imageA, setImageA] = useState<string | null>(null)
+  const [imageB, setImageB] = useState<string | null>(null)
+  const [threshold, setThreshold] = useState(10)
+  const [diffPercent, setDiffPercent] = useState<number | null>(null)
+  const [diffImageUrl, setDiffImageUrl] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
-class DiffImageState {
-  dataUrl: string | null = null
-  diffPercent: number = 0
-  width: number = 0
-  height: number = 0
-}
+  const loadImage = (file: File, setter: (v: string) => void) => {
+    const reader = new FileReader()
+    reader.onload = (e) => setter(e.target?.result as string)
+    reader.readAsDataURL(file)
+  }
 
-function loadImageFile(file: File): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const img = new Image()
-    img.onload = () => resolve(img)
-    img.onerror = reject
-    img.src = URL.createObjectURL(file)
-  })
-}
+  const compareImages = useCallback(() => {
+    if (!imageA || !imageB) return
+    setError(null)
+    const imgA = new Image()
+    const imgB = new Image()
+    let loaded = 0
+    const onLoad = () => {
+      loaded++
+      if (loaded < 2) return
 
-export default function ImageDiffTool({ tool }: ToolProps) {
-  const [fileA, setFileA] = useState<File | null>(null)
-  const [fileB, setFileB] = useState<File | null>(null)
-  const [previewA, setPreviewA] = useState<string | null>(null)
-  const [previewB, setPreviewB] = useState<string | null>(null)
-  const [threshold, setThreshold] = useState(30)
-  const [diffState, setDiffState] = useState<DiffImageState | null>(null)
-  const [comparing, setComparing] = useState(false)
+      const w = Math.min(imgA.width, imgB.width)
+      const h = Math.min(imgA.height, imgB.height)
 
-  const handleFileA = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0] ?? null
-    setFileA(f)
-    setDiffState(null)
-    if (f) setPreviewA(URL.createObjectURL(f))
-    else setPreviewA(null)
-  }, [])
+      if (w === 0 || h === 0) {
+        setError('One or both images have zero dimensions.')
+        return
+      }
 
-  const handleFileB = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0] ?? null
-    setFileB(f)
-    setDiffState(null)
-    if (f) setPreviewB(URL.createObjectURL(f))
-    else setPreviewB(null)
-  }, [])
+      const drawToCanvas = (img: HTMLImageElement) => {
+        const c = document.createElement('canvas')
+        c.width = w
+        c.height = h
+        const ctx = c.getContext('2d')!
+        ctx.drawImage(img, 0, 0, w, h)
+        return ctx.getImageData(0, 0, w, h).data
+      }
 
-  const handleCompare = useCallback(async () => {
-    if (!fileA || !fileB) return
-    setComparing(true)
-    setDiffState(null)
-
-    try {
-      const [imgA, imgB] = await Promise.all([loadImageFile(fileA), loadImageFile(fileB)])
-
-      const width = Math.min(imgA.width, imgB.width)
-      const height = Math.min(imgA.height, imgB.height)
-
-      const canvasA = document.createElement('canvas')
-      canvasA.width = width
-      canvasA.height = height
-      const ctxA = canvasA.getContext('2d')!
-      ctxA.drawImage(imgA, 0, 0, width, height)
-
-      const canvasB = document.createElement('canvas')
-      canvasB.width = width
-      canvasB.height = height
-      const ctxB = canvasB.getContext('2d')!
-      ctxB.drawImage(imgB, 0, 0, width, height)
-
-      const dataA = ctxA.getImageData(0, 0, width, height)
-      const dataB = ctxB.getImageData(0, 0, width, height)
+      const dataA = drawToCanvas(imgA)
+      const dataB = drawToCanvas(imgB)
 
       const diffCanvas = document.createElement('canvas')
-      diffCanvas.width = width
-      diffCanvas.height = height
+      diffCanvas.width = w
+      diffCanvas.height = h
       const diffCtx = diffCanvas.getContext('2d')!
-      const diffData = diffCtx.createImageData(width, height)
+      const diffData = diffCtx.createImageData(w, h)
 
       let diffPixels = 0
-      const totalPixels = width * height
+      const totalPixels = w * h
 
-      for (let i = 0; i < dataA.data.length; i += 4) {
-        const rD = Math.abs(dataA.data[i] - dataB.data[i])
-        const gD = Math.abs(dataA.data[i + 1] - dataB.data[i + 1])
-        const bD = Math.abs(dataA.data[i + 2] - dataB.data[i + 2])
-        const aD = Math.abs(dataA.data[i + 3] - dataB.data[i + 3])
+      for (let i = 0; i < dataA.length; i += 4) {
+        const dr = Math.abs(dataA[i] - dataB[i])
+        const dg = Math.abs(dataA[i + 1] - dataB[i + 1])
+        const db = Math.abs(dataA[i + 2] - dataB[i + 2])
+        const diff = Math.sqrt(dr * dr + dg * dg + db * db)
 
-        if (rD > threshold || gD > threshold || bD > threshold || aD > threshold) {
+        if (diff > threshold) {
           diffPixels++
           diffData.data[i] = 255
           diffData.data[i + 1] = 0
-          diffData.data[i + 2] = 100
+          diffData.data[i + 2] = 128
           diffData.data[i + 3] = 180
         } else {
-          diffData.data[i] = dataA.data[i]
-          diffData.data[i + 1] = dataA.data[i + 1]
-          diffData.data[i + 2] = dataA.data[i + 2]
-          diffData.data[i + 3] = dataA.data[i + 3]
+          diffData.data[i] = dataA[i] * 0.5
+          diffData.data[i + 1] = dataA[i + 1] * 0.5
+          diffData.data[i + 2] = dataA[i + 2] * 0.5
+          diffData.data[i + 3] = 255
         }
       }
 
       diffCtx.putImageData(diffData, 0, 0)
-      const diffPercent = totalPixels > 0 ? (diffPixels / totalPixels) * 100 : 0
-
-      setDiffState({
-        dataUrl: diffCanvas.toDataURL('image/png'),
-        diffPercent,
-        width,
-        height,
-      })
-    } catch (_err) {
-      setDiffState({ dataUrl: null, diffPercent: 0, width: 0, height: 0 })
-    } finally {
-      setComparing(false)
+      const url = diffCanvas.toDataURL('image/png')
+      setDiffImageUrl(url)
+      setDiffPercent((diffPixels / totalPixels) * 100)
     }
-  }, [fileA, fileB, threshold])
 
-  const handleDownload = useCallback(() => {
-    if (!diffState?.dataUrl) return
+    imgA.onload = onLoad
+    imgB.onload = onLoad
+    imgA.src = imageA
+    imgB.src = imageB
+  }, [imageA, imageB, threshold])
+
+  const downloadDiff = () => {
+    if (!diffImageUrl) return
     const a = document.createElement('a')
-    a.href = diffState.dataUrl
+    a.href = diffImageUrl
     a.download = 'image-diff.png'
     a.click()
-  }, [diffState])
+  }
+
+  const handleReset = () => {
+    setImageA(null)
+    setImageB(null)
+    setDiffImageUrl(null)
+    setDiffPercent(null)
+    setError(null)
+  }
 
   return (
-    <BaseToolLayout
-      title={tool.name}
-      description={tool.description}
-      options={
-        <div className='space-y-4 text-sm'>
-          <div className='space-y-2'>
-            <div className='text-xs font-semibold uppercase text-muted'>
-              Tolerance Threshold ({threshold})
-            </div>
-            <input
-              type='range'
-              min={0}
-              max={255}
-              value={threshold}
-              onChange={(e) => {
-                setThreshold(parseInt(e.target.value, 10))
-                setDiffState(null)
-              }}
-              className='w-full accent-accent'
-            />
-            <div className='flex justify-between text-[10px] text-muted'>
-              <span>Sensitive (0)</span>
-              <span>Tolerant (255)</span>
-            </div>
+    <BaseToolLayout title={tool.name} description={tool.description}>
+      <div className="space-y-4">
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <p className="text-sm text-muted mb-1">Image A</p>
+            {imageA ? (
+              <img src={imageA} alt="A" className="w-full rounded-lg border border-border" />
+            ) : (
+              <label className="flex flex-col items-center justify-center h-40 rounded-lg border-2 border-dashed border-border/50 cursor-pointer hover:border-accent/50">
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => e.target.files?.[0] && loadImage(e.target.files[0], setImageA)}
+                />
+                <ImageOff className="w-8 h-8 text-muted mb-1" />
+                <span className="text-sm text-muted">Click to upload</span>
+              </label>
+            )}
           </div>
+          <div>
+            <p className="text-sm text-muted mb-1">Image B</p>
+            {imageB ? (
+              <img src={imageB} alt="B" className="w-full rounded-lg border border-border" />
+            ) : (
+              <label className="flex flex-col items-center justify-center h-40 rounded-lg border-2 border-dashed border-border/50 cursor-pointer hover:border-accent/50">
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => e.target.files?.[0] && loadImage(e.target.files[0], setImageB)}
+                />
+                <ImageOff className="w-8 h-8 text-muted mb-1" />
+                <span className="text-sm text-muted">Click to upload</span>
+              </label>
+            )}
+          </div>
+        </div>
 
-          <Badge className='border-0 bg-accent/15 text-accent'>Offline • Canvas API</Badge>
-
-          <Button
-            onClick={handleCompare}
-            disabled={!fileA || !fileB || comparing}
-            className='w-full'
-          >
-            <Layers className='mr-2 h-4 w-4' />
-            {comparing ? 'Comparing...' : 'Compare'}
+        <div className="flex flex-wrap gap-2 items-center">
+          <Button size="sm" onClick={compareImages} disabled={!imageA || !imageB}>
+            <Layers className="w-4 h-4 mr-1" /> Compare
           </Button>
-        </div>
-      }
-    >
-      <div className='space-y-4'>
-        <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
-          <Card>
-            <div className='text-xs font-semibold uppercase text-muted mb-2'>Image A (Original)</div>
+          <Button size="sm" variant="outline" onClick={handleReset}>
+            Reset
+          </Button>
+          <div className="flex items-center gap-2 ml-auto">
+            <label className="text-xs text-muted">Threshold:</label>
             <input
-              type='file'
-              accept='image/*'
-              onChange={handleFileA}
-              className='w-full text-xs text-muted file:mr-2 file:rounded-lg file:border file:border-border file:bg-panel file:px-3 file:py-1.5 file:text-xs file:text-text file:cursor-pointer file:hover:bg-panel-strong'
+              type="range"
+              min="0"
+              max="255"
+              value={threshold}
+              onChange={(e) => setThreshold(parseInt(e.target.value))}
+              className="w-24"
             />
-            {previewA && (
-              <div className='mt-3 flex justify-center'>
-                <img src={previewA} alt='Image A' className='max-h-48 object-contain rounded-lg border border-border' />
-              </div>
-            )}
-          </Card>
-
-          <Card>
-            <div className='text-xs font-semibold uppercase text-muted mb-2'>Image B (Modified)</div>
-            <input
-              type='file'
-              accept='image/*'
-              onChange={handleFileB}
-              className='w-full text-xs text-muted file:mr-2 file:rounded-lg file:border file:border-border file:bg-panel file:px-3 file:py-1.5 file:text-xs file:text-text file:cursor-pointer file:hover:bg-panel-strong'
-            />
-            {previewB && (
-              <div className='mt-3 flex justify-center'>
-                <img src={previewB} alt='Image B' className='max-h-48 object-contain rounded-lg border border-border' />
-              </div>
-            )}
-          </Card>
+            <span className="text-xs text-muted">{threshold}</span>
+          </div>
         </div>
 
-        {previewA && previewB && (
-          <Card>
-            <div className='text-sm font-semibold text-text mb-3'>Preview</div>
-            <div className='grid grid-cols-2 gap-4'>
-              <div className='text-center'>
-                <div className='text-[10px] uppercase text-muted mb-1'>Image A</div>
-                <img src={previewA} alt='A' className='max-h-64 w-full object-contain rounded border border-border bg-base/40' />
-              </div>
-              <div className='text-center'>
-                <div className='text-[10px] uppercase text-muted mb-1'>Image B</div>
-                <img src={previewB} alt='B' className='max-h-64 w-full object-contain rounded border border-border bg-base/40' />
-              </div>
-            </div>
+        {error && (
+          <Card className="rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            <AlertCircle className="w-4 h-4 inline mr-1" /> {error}
           </Card>
         )}
 
-        {diffState?.dataUrl && (
-          <Card className='space-y-3'>
-            <div className='flex items-center justify-between'>
-              <div className='flex items-center gap-2 text-sm font-semibold text-accent'>
-                <ImageOff className='h-4 w-4' />
-                Visual Diff
-              </div>
-              <Button variant='ghost' size='sm' onClick={handleDownload}>
-                <Download className='mr-1 h-3 w-3' />
-                Download PNG
-              </Button>
-            </div>
-
-            <div className='text-center p-4 bg-base/40 rounded-xl'>
-              <img src={diffState.dataUrl} alt='Diff' className='max-h-96 w-full object-contain mx-auto' />
-            </div>
-
-            <div className='text-center'>
-              <div className='inline-block px-4 py-2 rounded-xl bg-accent/10 border border-accent/30'>
-                <span className='text-lg font-bold text-accent'>
-                  {diffState.diffPercent.toFixed(1)}%
-                </span>
-                <span className='text-sm text-muted ml-2'>pixels differ</span>
-              </div>
-              <div className='text-[10px] text-muted mt-1'>
-                {diffState.width} × {diffState.height} compared at threshold: {threshold}
-              </div>
-            </div>
-          </Card>
+        {diffPercent !== null && (
+          <Badge
+            className={
+              diffPercent < 1
+                ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+                : diffPercent < 10
+                  ? 'bg-amber-500/15 text-amber-400 border-amber-500/30'
+                  : 'bg-red-500/15 text-red-400 border-red-500/30'
+            }
+          >
+            {diffPercent.toFixed(2)}% pixels differ
+          </Badge>
         )}
 
-        {diffState && !diffState.dataUrl && (
-          <Card className='text-center text-sm text-red-300 border-red-500/30 bg-red-500/5'>
-            Error comparing images. Ensure both files are valid images.
-          </Card>
-        )}
-
-        {!diffState && !comparing && (
-          <Card className='rounded-xl border border-border bg-base/60 px-4 py-6 text-center text-sm text-muted'>
-            <div className='flex justify-center mb-2'>
-              <Layers className='h-6 w-6 text-accent' />
-            </div>
-            <p>Upload two images and click Compare to see pixel-level differences.</p>
-          </Card>
+        {diffImageUrl && (
+          <div>
+            <p className="text-sm text-muted mb-2">Difference Overlay</p>
+            <img src={diffImageUrl} alt="Diff" className="w-full rounded-lg border border-border" />
+            <Button size="sm" variant="outline" className="mt-2" onClick={downloadDiff}>
+              <Download className="w-4 h-4 mr-1" /> Download Diff
+            </Button>
+          </div>
         )}
       </div>
     </BaseToolLayout>

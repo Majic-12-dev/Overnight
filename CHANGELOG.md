@@ -67,6 +67,17 @@ All notable changes to DocFlow Pro will be documented in this file.
 | `piexifjs` type declarations | Added `declare module 'piexifjs'` to satisfy TypeScript |
 | Duplicate `PdfRedactTool.tsx` | Removed orphaned file in favor of `PdfRedactionTool.tsx` |
 | Memory leaks (Critic review) | Added 5-minute auto-revoke timers for Blob URLs in 3 tools |
+| `ArchiveExtractTool.tsx` keyboard accessibility | Added full keyboard navigation: Home/End keys for file tree, roving tabindex pattern, extract button focus management, and ARIA tree roles (`role="tree"`, `role="treeitem"`) |
+
+### ♿ Accessibility Improvements
+
+- **ArchiveExtractTool** — Full keyboard navigation for file tree:
+  - Home/End keys jump to first/last tree item
+  - Arrow Up/Down moves focus between tree items (roving tabindex)
+  - Arrow Left/Right collapses/expands folders
+  - Enter/Space toggles file selection
+  - Extract button receives focus after extraction completes
+  - ARIA tree roles (`role="tree"`, `role="treeitem"`, `aria-expanded`, `aria-selected`) applied to file tree structure
 
 ### 📦 New Dependencies
 

@@ -3,6 +3,7 @@ import type { LucideIcon } from 'lucide-react'
 import {
   Archive,
   ArrowLeftRight,
+  AudioLines,
   Camera,
   BadgeCheck,
   BarChart3,
@@ -48,6 +49,7 @@ import {
   Link2,
   ListTodo,
   Maximize,
+  Music,
   Network,
   NotebookPen,
   Paintbrush,
@@ -196,6 +198,10 @@ import { CssFormatterTool } from '@/tools/text/CSSFormatterTool'
 import { FaviconGeneratorTool } from '@/tools/developer/FaviconGeneratorTool'
 import { HTTPHeadersTool } from '@/tools/developer/HTTPHeadersTool'
 import { OpenGraphPreviewTool } from '@/tools/developer/OpenGraphPreviewTool'
+import ImageDiffTool from '@/tools/image/ImageDiffTool'
+import MarkdownToPdfTool from '@/tools/file/MarkdownToPdfTool'
+import AudioMetadataTool from '@/tools/audio/AudioMetadataTool'
+import AudioConverterTool from '@/tools/audio/AudioConverterTool'
 import { Eye } from 'lucide-react'
 
 export type ToolCategory = {
@@ -256,6 +262,12 @@ export const categories: ToolCategory[] = [
     label: 'Productivity',
     description: 'Quick actions and multi-tool workflows.',
     icon: Sparkles,
+  },
+  {
+    id: 'audio',
+    label: 'Audio',
+    description: 'Audio file analysis and conversion tools',
+    icon: Music,
   },
 ]
 
@@ -1189,12 +1201,36 @@ export const tools: ToolDefinition[] = [
     component: TextStatsTool,
   },
   {
-    id: 'css-formatter',
-    name: 'CSS Minifier & Beautifier',
-    description: 'Minify or beautify CSS with copy-to-clipboard, file download, and size comparison stats.',
-    categoryId: 'text',
-    icon: Paintbrush,
-    component: CssFormatterTool,
+    id: 'image-diff',
+    name: 'Image Diff',
+    description: 'Compare two images pixel-by-pixel, visualize differences with adjustable threshold.',
+    categoryId: 'image',
+    icon: Layers,
+    component: ImageDiffTool,
+  },
+  {
+    id: 'markdown-to-pdf',
+    name: 'Markdown to PDF',
+    description: 'Write or upload Markdown and export a formatted PDF with page size and margin controls.',
+    categoryId: 'file',
+    icon: FileText,
+    component: MarkdownToPdfTool,
+  },
+  {
+    id: 'audio-metadata',
+    name: 'Audio Metadata Viewer',
+    description: 'Inspect audio file properties: duration, sample rate, channels, bitrate, and visualize waveform.',
+    categoryId: 'audio',
+    icon: AudioLines,
+    component: AudioMetadataTool,
+  },
+  {
+    id: 'audio-converter',
+    name: 'Audio Converter',
+    description: 'Convert between audio formats, change sample rate, channels, and bit depth.',
+    categoryId: 'audio',
+    icon: ArrowLeftRight,
+    component: AudioConverterTool,
   },
 ]
 
