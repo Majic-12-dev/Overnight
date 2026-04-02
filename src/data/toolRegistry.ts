@@ -5,17 +5,23 @@ import {
   ArrowLeftRight,
   BadgeCheck,
   BarChart3,
+  Ban,
+  Bookmark,
+  BookmarkPlus,
   Braces,
   CaseSensitive,
+  CheckCircle2,
   Clipboard,
   Clock,
   Code,
   Code2,
   Combine,
   Crop,
+  Database,
   Diff,
   FileArchive,
   FileCode,
+  FileEdit,
   Globe,
   FileDigit,
   FileImage,
@@ -40,13 +46,17 @@ import {
   ListTodo,
   Maximize,
   Network,
+  NotebookPen,
+  Paintbrush,
   Palette,
   PencilRuler,
   QrCode,
   Ratio,
   Regex,
   RotateCw,
+  ScanLine,
   ScanText,
+  Search,
   SearchCheck,
   Shield,
   ShieldCheck,
@@ -54,6 +64,7 @@ import {
   Sparkles,
   Split,
   SplitSquareVertical,
+  StickyNote,
   Table,
   Table2,
   TextCursorInput,
@@ -63,6 +74,8 @@ import {
   Volume2,
   Wand2,
 } from 'lucide-react'
+import { PdfRedactTool } from '@/tools/pdf/PdfRedactTool'
+import { PdfFormFillerTool } from '@/tools/pdf/PdfFormFillerTool'
 import { PdfToTextTool } from '@/tools/pdf/PdfToTextTool'
 import { ImageRotateFlipTool } from '@/tools/image/ImageRotateFlipTool'
 import { ImageCropTool } from '@/tools/image/ImageCropTool'
@@ -81,6 +94,9 @@ import { PdfPasswordTool } from '@/tools/pdf/PdfPasswordTool'
 import { PdfToImagesTool } from '@/tools/pdf/PdfToImagesTool'
 import { PdfExtractImagesTool } from '@/tools/pdf/PdfExtractImagesTool'
 import { PdfReorderTool } from '@/tools/pdf/PdfReorderTool'
+import { PdfSignTool } from '@/tools/pdf/PdfSignTool'
+import { PdfAnnotatorTool } from '@/tools/pdf/PdfAnnotatorTool'
+import { ImageOcrTool } from '@/tools/image/ImageOcrTool'
 import { ArchiveZipTool } from '@/tools/archive/ArchiveZipTool'
 import { ImageConvertTool } from '@/tools/image/ImageConvertTool'
 import { ImageResizeTool } from '@/tools/image/ImageResizeTool'
@@ -152,6 +168,16 @@ import { CodeMinifierTool } from '@/tools/text/CodeMinifierTool'
 import { JwtInspectorTool } from '@/tools/security/JwtInspectorTool'
 import { UrlEncoderTool } from '@/tools/text/UrlEncoderTool'
 import { SubnetCalculatorTool } from '@/tools/network/SubnetCalculatorTool'
+import { SqlFormatterTool } from '@/tools/text/SQLFormatterTool'
+import { SvgOptimizerTool } from '@/tools/image/SVGOptimizerTool'
+import { RegexReplacerTool } from '@/tools/text/RegexReplacerTool'
+import { QuickNotesTool } from '@/tools/productivity/QuickNotesTool'
+import { ArchiveExtractTool } from '@/tools/archive/ArchiveExtractTool'
+import { BookmarkManagerTool } from '@/tools/productivity/BookmarkManagerTool'
+import { BarcodeGeneratorTool } from '@/tools/productivity/BarcodeGeneratorTool'
+
+import { CssBeautifierTool } from '@/tools/text/CSSBeautifierTool'
+
 export type ToolCategory = {
   id: string
   label: string
@@ -214,6 +240,22 @@ export const categories: ToolCategory[] = [
 ]
 
 export const tools: ToolDefinition[] = [
+  {
+    id: 'pdf-redact',
+    name: 'PDF Redaction',
+    description: 'Permanently remove sensitive content from PDF pages with black boxes',
+    categoryId: 'pdf',
+    icon: Ban,
+    component: PdfRedactTool,
+  },
+  {
+    id: 'pdf-form-filler',
+    name: 'PDF Form Filler',
+    description: 'Fill interactive PDF form fields programmatically',
+    categoryId: 'pdf',
+    icon: FileEdit,
+    component: PdfFormFillerTool,
+  },
   {
     id: 'pdf-merge',
     name: 'PDF Merge',
@@ -327,6 +369,30 @@ export const tools: ToolDefinition[] = [
     component: PdfReorderTool,
   },
   {
+    id: 'pdf-sign',
+    name: 'PDF Sign',
+    description: 'Add text, drawn, or image signatures to PDF documents.',
+    categoryId: 'pdf',
+    icon: PencilRuler,
+    component: PdfSignTool,
+  },
+  {
+    id: 'pdf-annotate',
+    name: 'PDF Annotator',
+    description: 'Add text annotations and highlights to PDF files.',
+    categoryId: 'pdf',
+    icon: StickyNote,
+    component: PdfAnnotatorTool,
+  },
+  {
+    id: 'barcode-generator',
+    name: 'Barcode Generator',
+    description: 'Generate barcodes (Code128, QR, EAN) and 1D/2D codes',
+    categoryId: 'productivity',
+    icon: ScanLine,
+    component: BarcodeGeneratorTool,
+  },
+  {
     id: 'image-convert',
     name: 'Image Converter',
     description: 'Convert between JPG, PNG, WEBP, TIFF, and more.',
@@ -415,6 +481,14 @@ export const tools: ToolDefinition[] = [
     component: ImageCropTool,
   },
   {
+    id: 'image-ocr',
+    name: 'Image OCR',
+    description: 'Extract text from images using Tesseract.js OCR engine.',
+    categoryId: 'image',
+    icon: ScanText,
+    component: ImageOcrTool,
+  },
+  {
     id: 'text-merge',
     name: 'Text File Merge',
     description: 'Combine multiple text files into one.',
@@ -493,6 +567,14 @@ export const tools: ToolDefinition[] = [
     categoryId: 'archive',
     icon: Archive,
     component: ArchiveZipTool,
+  },
+  {
+    id: 'archive-extract',
+    name: 'Archive Extract',
+    description: 'Extract tar, gz, bz2, and other compressed archive formats.',
+    categoryId: 'archive',
+    icon: FileArchive,
+    component: ArchiveExtractTool,
   },
   {
     id: 'security-encrypt',
@@ -911,20 +993,52 @@ export const tools: ToolDefinition[] = [
     component: JwtInspectorTool,
   },
   {
-    id: 'url-encoder',
-    name: 'URL Encoder / Decoder',
-    description: 'Encode or decode URLs and query parameters with strict and full-URL modes.',
+    id: 'sql-formatter',
+    name: 'SQL Formatter',
+    description: 'Beautify or minify SQL queries with intelligent keyword recognition and formatting.',
     categoryId: 'text',
-    icon: Link2,
-    component: UrlEncoderTool,
+    icon: Database,
+    component: SqlFormatterTool,
   },
   {
-    id: 'subnet-calc',
-    name: 'IPv4 Subnet Calculator',
-    description: 'Calculate network address, broadcast, gateway, host range, and wildcard mask from CIDR.',
+    id: 'svg-optimizer',
+    name: 'SVG Optimizer',
+    description: 'Optimize SVG files by removing comments, metadata, and unnecessary whitespace for smaller file sizes.',
+    categoryId: 'image',
+    icon: Sparkles,
+    component: SvgOptimizerTool,
+  },
+  {
+    id: 'css-beautifier',
+    name: 'CSS Beautifier & Minifier',
+    description: 'Beautify or minify CSS stylesheets with intelligent formatting and size comparison.',
+    categoryId: 'text',
+    icon: Paintbrush,
+    component: CssBeautifierTool,
+  },
+  {
+    id: 'regex-replacer',
+    name: 'Regex Find & Replace',
+    description: 'Search and replace text using regular expressions with flags, match highlighting, and preview.',
+    categoryId: 'text',
+    icon: Search,
+    component: RegexReplacerTool,
+  },
+  {
+    id: 'quick-notes',
+    name: 'Quick Notes',
+    description: 'A lightweight notepad with multiple notes, search, markdown export, and localStorage persistence.',
     categoryId: 'productivity',
-    icon: Network,
-    component: SubnetCalculatorTool,
+    icon: NotebookPen,
+    component: QuickNotesTool,
+  },
+  {
+    id: 'bookmark-manager',
+    name: 'Bookmark Manager',
+    description: 'Organize, search, and manage your favorite links with tags, notes, and JSON export.',
+    categoryId: 'productivity',
+    icon: Bookmark,
+    component: BookmarkManagerTool,
   },
 ]
 

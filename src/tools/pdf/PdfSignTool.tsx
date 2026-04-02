@@ -279,7 +279,7 @@ export function PdfSignTool({ tool }: PdfSignToolProps) {
           }
 
           const pdfBytes = await pdfDoc.save()
-          const blob = new Blob([pdfBytes], { type: 'application/pdf' })
+          const blob = new Blob([pdfBytes.buffer as BlobPart], { type: 'application/pdf' })
           const blobUrl = URL.createObjectURL(blob)
 
           results.push({
