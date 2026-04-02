@@ -4,6 +4,7 @@ import { createReadStream, createWriteStream, constants as fsConstants } from 'n
 import { pipeline } from 'stream/promises'
 import path from 'node:path'
 import { promisify } from 'node:util'
+import { validatePaths } from '../utils/pathValidation'
 
 const scrypt = promisify(scryptCallback)
 
@@ -25,15 +26,6 @@ export type SecurityProcessPayload = {
 interface ChecksumItem {
   path: string
   [key: string]: string
-}
-
-// Prevent in-place overwrites: ensure input and output are different files
-function validatePaths(input: string, output: string) {
-  const resolvedInput = path.resolve(input)
-  const resolvedOutput = path.resolve(output)
-  if (resolvedInput === resolvedOutput) {
-    throw new Error('Input and output paths must be different to prevent data loss.')
-  }
 }
 
 export async function checksumFiles({ inputPaths, algorithm }: ChecksumPayload) {
