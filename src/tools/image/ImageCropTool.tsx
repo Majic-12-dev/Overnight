@@ -18,6 +18,55 @@ export function ImageCropTool({ tool }: ImageCropToolProps) {
   const [customH, setCustomH] = useState(1)
   const [isProcessing, setIsProcessing] = useState(false)
 
+  const loadImage = (src: string): Promise<HTMLImageElement> =>
+    new Promise((resolve, reject) => {
+      const img = new Image()
+      img.onload = () => {
+        URL.revokeObjectURL(src)
+        resolve(img)
+      }
+      img.onerror = () => reject(new Error('Failed to load image.'))
+      img.src = src
+    })
+
+  const cropImageFile = async (file: File, aspect: number): Promise<Blob> => {
+    const imgUrl = URL.createObjectURL(file)
+    try {
+      const img = await loadImage(imgUrl)
+      const imgAspect = img.width / img.height
+      let cropW: number, cropH: number
+      if (imgAspect > aspect) {
+        cropH = img.height
+        cropW = img.height * aspect
+      } else {
+        cropW = img.width
+        cropH = img.width / aspect
+      }
+      const sx = (img.width - cropW) / 2
+      const sy = (img.height - cropH) / 2
+      const canvas = document.createElement('canvas')
+      canvas.width = Math.round(cropW)
+      canvas.height = Math.round(cropH)
+      const ctx = canvas.getContext('2d')
+      if (!ctx) throw new Error('Canvas 2D context unavailable')
+      ctx.drawImage(img, sx, sy, cropW, cropH, 0, 0, cropW, cropH)
+      const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'))
+      if (!blob) throw new Error('Failed to create cropped image blob.')
+      return blob
+    } finally {
+      URL.revokeObjectURL(imgUrl)
+    }
+  }
+
+  const downloadBlob = (blob: Blob, name: string) => {
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = name
+    a.click()
+    setTimeout(() => URL.revokeObjectURL(url), 1000)
+  }
+
   const getAspect = (): number | null => {
     if (preset === 'free') return null
     if (preset === 'custom') return customH > 0 ? customW / customH : null
@@ -52,7 +101,7 @@ export function ImageCropTool({ tool }: ImageCropToolProps) {
 
       for (const toolFile of files) {
         try {
-          const blob = await cropImage(toolFile.file, aspect)
+          const blob = await cropImageFile(toolFile.file, aspect)
           const outName = toolFile.name.replace(/\.[^.]+$/, '') + '_cropped.png'
           blobs.push({ name: outName, blob })
           completed++
@@ -96,54 +145,6 @@ export function ImageCropTool({ tool }: ImageCropToolProps) {
     } finally {
       setIsProcessing(false)
     }
-  }
-
-  const cropImage = async (file: File, aspect: number): Promise<Blob> => {
-    const imgUrl = URL.createObjectURL(file)
-    try {
-      const img = await loadImage(imgUrl)
-      const imgAspect = img.width / img.height
-      let cropW: number, cropH: number
-      if (imgAspect > aspect) {
-        cropH = img.height
-        cropW = img.height * aspect
-      } else {
-        cropW = img.width
-        cropH = img.width / aspect
-      }
-      const sx = (img.width - cropW) / 2
-      const sy = (img.height - cropH) / 2
-      const canvas = document.createElement('canvas')
-      canvas.width = Math.round(cropW)
-      canvas.height = Math.round(cropH)
-      const ctx = canvas.getContext('2d')
-      if (!ctx) throw new Error('Failed to get canvas 2D context.')
-      ctx.drawImage(img, sx, sy, cropW, cropH, 0, 0, cropW, cropH)
-      const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'))
-      if (!blob) throw new Error('Failed to create cropped image blob.')
-      return blob
-    } finally {
-      URL.revokeObjectURL(imgUrl)
-    }
-  }
-
-  const loadImage = (src: string): Promise<HTMLImageElement> =>
-    new Promise((resolve, reject) => {
-      const img = new Image()
-      img.onload = () => {
-        resolve(img)
-      }
-      img.onerror = () => reject(new Error('Failed to load image.'))
-      img.src = src
-    })
-
-  const downloadBlob = (blob: Blob, name: string) => {
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = name
-    a.click()
-    setTimeout(() => URL.revokeObjectURL(url), 1000)
   }
 
   return (

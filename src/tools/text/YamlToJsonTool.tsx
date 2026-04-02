@@ -91,7 +91,6 @@ function parseBlock(lines: string[], ctx: { index: number }, parentIndent: numbe
       ctx.index++
       const blockLines: string[] = []
       let bi = indentLevel + 2
-      // Find first non-empty line's indent
       let peek = ctx.index
       while (peek < lines.length) { if (lines[peek].trim() !== '') { bi = detectIndent(lines[peek]); break } peek++ }
       while (ctx.index < lines.length) {
@@ -134,7 +133,6 @@ function parseArrayBlock(lines: string[], ctx: { index: number }, _parentIndent:
           ctx.index++
         }
       } else { ctx.index++; }
-      // Continue reading more keys at same indent
       while (ctx.index < lines.length) {
         const nLine = lines[ctx.index]
         const nTrimmed = nLine.trim()
@@ -215,8 +213,6 @@ function jsonToYaml(obj: unknown, indent = 0): string {
   return String(obj)
 }
 
-
-
 export function YamlToJsonTool({ tool }: YamlToJsonToolProps) {
   const [input, setInput] = useState('')
   const [output, setOutput] = useState('')
@@ -262,13 +258,6 @@ export function YamlToJsonTool({ tool }: YamlToJsonToolProps) {
     if (!files.length) { context.setError('No files selected.'); return }
     context.setProgress(10)
     try {
-      const texts = await Promise.all(files.map(f => {
-        const ext = f.name.split('.').pop()?.toLowerCase()
-        // Auto-detect direction if not set
-        if (!ext && files.length === 1) return f
-        return f
-      }))
-      // Always treat uploaded content as the input direction
       const combined = (await Promise.all(files.map(f => f.file.text()))).join('\n\n')
       setInput(combined)
       if (direction === 'yaml-to-json') {
@@ -302,11 +291,13 @@ export function YamlToJsonTool({ tool }: YamlToJsonToolProps) {
   }, [output])
 
   return (
-    <div className="flex flex-col gap-6">
-      <header className="space-y-2">
-        <h1 className="text-2xl font-semibold text-text">{tool.name}</h1>
-        <p className="max-w-2xl text-sm text-muted">{tool.description}</p>
-      </header>
+    <BaseToolLayout
+      title={tool.name}
+      description={tool.description}
+      accept={direction === 'yaml-to-json' ? '.yaml,.yml' : '.json'}
+      instructions="Upload YAML or JSON files to load content."
+      onProcess={handleProcess}
+    >
       <div className="grid grid-cols-[minmax(0,1fr)_280px] gap-6">
         <div className="space-y-4">
           <div className="flex items-center gap-4 flex-wrap">
@@ -369,13 +360,6 @@ export function YamlToJsonTool({ tool }: YamlToJsonToolProps) {
           </p>
         </Card>
       </div>
-      <BaseToolLayout
-        title=""
-        description=""
-        accept={direction === 'yaml-to-json' ? '.yaml,.yml' : '.json'}
-        instructions="Upload YAML or JSON files to load content."
-        onProcess={handleProcess}
-      />
-    </div>
+    </BaseToolLayout>
   )
 }

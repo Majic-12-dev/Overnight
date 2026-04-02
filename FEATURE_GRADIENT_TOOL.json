@@ -1,0 +1,14 @@
+The file has been written to `/data/workspace/repo/src/tools/productivity/GradientGeneratorTool.tsx` and compiles with zero TypeScript errors. Here's what it provides:
+
+**Component**: `GradientGeneratorTool` — named export, accepts `{ tool: ToolDefinition }` prop, wraps everything in `BaseToolLayout`.
+
+**Features implemented:**
+- **2 gradient types** — `linear` and `radial` (toggleable in options panel)
+- **Angle control** — 0–360° range slider, shown only for linear gradients
+- **8 preset gradients** — Sunset, Ocean, Flame, Forest, Purple Dream, Aurora (radial), Cosmic, Cotton Candy (radial)
+- **Color stops** — starts with 2, supports up to 8; each has a native color picker, numeric position input (0–100%), a range slider for position, and a delete button (when > 2 stops)
+- **Live preview** — 240px tall rounded box rendering the current gradient via `style={background: ...}`
+- **Generated CSS** — outputs valid `background: linear-gradient(...)` or `background: radial-gradient(...)` in a `<pre>` block
+- **Copy to clipboard** — `navigator.clipboard.writeText()` with a `Copied!` confirmation state (no `alert()` calls)
+
+All handler functions are `useCallback`-memoized, CSS generation uses `useMemo`, and the component follows the same structure as existing tools like `LoremGeneratorTool`.

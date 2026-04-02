@@ -1,10 +1,10 @@
-import { useCallback, useMemo, useState, useRef, type ReactNode } from 'react'
+import { useCallback, useMemo, useState, type ReactNode } from 'react'
 import type { ToolDefinition } from '@/data/toolRegistry'
 import { BaseToolLayout } from '@/components/tools/BaseToolLayout'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
-import { ShieldCheck, AlertTriangle, CheckCircle2, XCircle } from 'lucide-react'
+import { ShieldCheck, AlertTriangle, CheckCircle2, XCircle, Eye, EyeOff } from 'lucide-react'
 
 type PasswordAuditorToolProps = {
   tool: ToolDefinition
@@ -132,6 +132,7 @@ export function PasswordAuditorTool({ tool }: PasswordAuditorToolProps) {
   const [passwords, setPasswords] = useState<string[]>([''])
   const [results, setResults] = useState<AuditResult[]>([])
   const [isProcessing, setIsProcessing] = useState(false)
+  const [showPasswords, setShowPasswords] = useState<Record<number, boolean>>({})
 
   const handlePasswordChange = useCallback((index: number, value: string) => {
     setPasswords(prev => { const next = [...prev]; next[index] = value; return next })
@@ -141,6 +142,10 @@ export function PasswordAuditorTool({ tool }: PasswordAuditorToolProps) {
 
   const removePasswordInput = useCallback((index: number) => {
     setPasswords(prev => prev.filter((_, i) => i !== index))
+  }, [])
+
+  const togglePasswordVisibility = useCallback((index: number) => {
+    setShowPasswords(prev => ({ ...prev, [index]: !prev[index] }))
   }, [])
 
   const runAudit = useCallback(() => {
@@ -179,12 +184,14 @@ export function PasswordAuditorTool({ tool }: PasswordAuditorToolProps) {
   }, [results])
 
   return (
-    <div className="flex flex-col gap-6">
-      <header className="space-y-2">
-        <h1 className="text-2xl font-semibold text-text">{tool.name}</h1>
-        <p className="max-w-2xl text-sm text-muted">{tool.description}</p>
-      </header>
-
+    <BaseToolLayout
+      title={tool.name}
+      description={tool.description}
+      accept=".txt"
+      instructions="Upload a text file with one password per line for batch auditing."
+      onProcess={handleProcess}
+      loading={isProcessing}
+    >
       <div className="grid grid-cols-[minmax(0,1fr)_280px] gap-6">
         <div className="space-y-4">
           <div className="space-y-3">
@@ -197,13 +204,23 @@ export function PasswordAuditorTool({ tool }: PasswordAuditorToolProps) {
             </div>
             {passwords.map((pw, i) => (
               <div key={i} className="flex items-center gap-2">
-                <input
-                  type="text"
-                  value={pw}
-                  onChange={(e) => handlePasswordChange(i, e.target.value)}
-                  placeholder="Enter password to audit..."
-                  className="flex-1 rounded-lg border border-border bg-base p-2 text-sm font-mono text-text placeholder:text-muted"
-                />
+                <div className="relative flex-1">
+                  <input
+                    type={showPasswords[i] ? 'text' : 'password'}
+                    value={pw}
+                    onChange={(e) => handlePasswordChange(i, e.target.value)}
+                    placeholder="Enter password to audit..."
+                    className="w-full rounded-lg border border-border bg-base p-2 text-sm font-mono text-text placeholder:text-muted"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => togglePasswordVisibility(i)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted hover:text-text transition"
+                    tabIndex={-1}
+                  >
+                    {showPasswords[i] ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
                 {passwords.length > 1 && (
                   <Button variant="ghost" onClick={() => removePasswordInput(i)}>
                     <XCircle className="h-4 w-4" />
@@ -300,14 +317,6 @@ export function PasswordAuditorTool({ tool }: PasswordAuditorToolProps) {
           <p className="text-xs text-red-400">⚠ Passwords never leave your device. All processing is done in-browser.</p>
         </Card>
       </div>
-
-      <BaseToolLayout
-        title="" description=""
-        accept=".txt"
-        instructions="Upload a text file with one password per line."
-        onProcess={handleProcess}
-        loading={isProcessing}
-      />
-    </div>
+    </BaseToolLayout>
   )
 }

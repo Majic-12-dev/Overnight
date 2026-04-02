@@ -216,5 +216,15 @@ interface Window {
       outputDir: string
       outputName?: string
     }) => Promise<{ outputPath: string; pageCount: number }>
+    shredFiles: (payload: {
+      inputPaths: string[]
+      passes: 3 | 7 | 35
+      verify: boolean
+    }) => Promise<{
+      filesProcessed: number
+      bytesOverwritten: number
+      verificationPassed: boolean
+      errors?: string[]
+    }>
   }
 }

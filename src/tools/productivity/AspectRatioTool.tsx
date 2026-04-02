@@ -1,10 +1,6 @@
-import { useCallback, useMemo, useState } from 'react'
-import type { ReactNode } from 'react'
+import { useMemo, useState } from 'react'
 import type { ToolDefinition } from '@/data/toolRegistry'
 import { BaseToolLayout } from '@/components/tools/BaseToolLayout'
-import { Badge } from '@/components/ui/Badge'
-import { Button } from '@/components/ui/Button'
-import { Card } from '@/components/ui/Card'
 import { Select } from '@/components/ui/Select'
 
 type AspectRatioToolProps = {
@@ -85,25 +81,6 @@ export function AspectRatioTool({ tool }: AspectRatioToolProps) {
       { label: 'For 2160px height', w: Math.round(2160 * ratio), h: 2160 },
     ]
   }, [ratioW, ratioH])
-
-  const handleProcess = useCallback(
-    (
-      _files: Array<{ file: File; name: string; size: number }>,
-      context: { setProgress: (v: number) => void; setResult: (r: ReactNode | null) => void; setError: (m: string | null) => void },
-    ) => {
-      context.setProgress(100)
-      const resultCard: ReactNode = (
-        <Card className="space-y-3 border-border bg-base/60 p-4">
-          <h3 className="text-sm font-semibold text-text">Resolution Table</h3>
-          <div className="text-sm">
-            {COMMON_RESOLUTIONS.length} standard resolutions listed below.
-          </div>
-        </Card>
-      )
-      context.setResult(resultCard)
-    },
-    [],
-  )
 
   const resolutionTable = useMemo(
     () => (

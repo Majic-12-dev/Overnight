@@ -140,12 +140,13 @@ export function SnippetManagerTool({ tool }: SnippetManagerToolProps) {
   }, [snippets, persist])
 
   return (
-    <div className="flex flex-col gap-6">
-      <header className="space-y-2">
-        <h1 className="text-2xl font-semibold text-text">{tool.name}</h1>
-        <p className="max-w-2xl text-sm text-muted">{tool.description}</p>
-      </header>
-
+    <BaseToolLayout
+      title={tool.name}
+      description={tool.description}
+      accept="*/*"
+      instructions="Import code files from your device."
+      onProcess={handleProcess}
+    >
       <Card className="p-4 space-y-3">
         {view === 'list' ? (
           <>
@@ -228,8 +229,6 @@ export function SnippetManagerTool({ tool }: SnippetManagerToolProps) {
           </div>
         )}
       </Card>
-
-      <BaseToolLayout title="" description="" accept="*/*" instructions="Import code files from your device." onProcess={handleProcess} />
-    </div>
+    </BaseToolLayout>
   )
 }

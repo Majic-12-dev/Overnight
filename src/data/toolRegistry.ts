@@ -2,12 +2,17 @@ import type { ComponentType } from 'react'
 import type { LucideIcon } from 'lucide-react'
 import {
   Archive,
-  BadgeCheck,
   ArrowLeftRight,
+  BadgeCheck,
+  BarChart3,
   Braces,
+  CaseSensitive,
+  Clipboard,
   Clock,
+  Code,
   Code2,
   Combine,
+  Crop,
   Diff,
   FileArchive,
   FileCode,
@@ -19,7 +24,10 @@ import {
   FileSearch,
   FileText,
   FileType,
+  FileType2,
+  FileUp,
   Folder,
+  Hash,
   Image,
   ImageDown,
   ImageMinus,
@@ -27,37 +35,31 @@ import {
   ImageUp,
   KeyRound,
   Layers,
+  Link2,
+  ListTodo,
+  Maximize,
   Palette,
   PencilRuler,
   QrCode,
+  Ratio,
   Regex,
+  RotateCw,
   ScanText,
+  SearchCheck,
   Shield,
+  ShieldCheck,
+  Sliders,
   Sparkles,
+  Split,
   SplitSquareVertical,
   Table,
   Table2,
   TextCursorInput,
-  Wand2,
-  Type,
-  CaseSensitive,
-  Link2,
   Timer,
-  Hash,
-  ListTodo,
-  Code,
-  FileUp,
-  FileType2,
-  BarChart3,
-  ShieldCheck,
+  Trash2,
+  Type,
   Volume2,
-  Split,
-  Ratio,
-  Crop,
-  Maximize,
-  RotateCw,
-  SearchCheck,
-  Clipboard,
+  Wand2,
 } from 'lucide-react'
 import { PdfToTextTool } from '@/tools/pdf/PdfToTextTool'
 import { ImageRotateFlipTool } from '@/tools/image/ImageRotateFlipTool'
@@ -133,6 +135,10 @@ import { CronExpressionTool } from '@/tools/productivity/CronExpressionTool'
 import { HtmlCodeTool } from '@/tools/text/HtmlCodeTool'
 import { NumberBaseConverterTool } from '@/tools/productivity/NumberBaseConverterTool'
 import { TextSplitterTool } from '@/tools/text/TextSplitterTool'
+import { QrCodeDecoderTool } from '@/tools/productivity/QrCodeDecoderTool'
+import { ImageEnhancerTool } from '@/tools/image/ImageEnhancerTool'
+import { GradientGeneratorTool } from '@/tools/productivity/GradientGeneratorTool'
+import { FileShredderTool } from '@/tools/security/FileShredderTool'
 export type ToolCategory = {
   id: string
   label: string
@@ -786,6 +792,38 @@ export const tools: ToolDefinition[] = [
     categoryId: 'security',
     icon: ShieldCheck,
     component: PasswordAuditorTool,
+  },
+  {
+    id: 'qr-code-decoder',
+    name: 'QR Code Decoder',
+    description: 'Decode QR codes from images. Upload a screenshot or photo containing a QR code to extract its data.',
+    categoryId: 'productivity',
+    icon: QrCode,
+    component: QrCodeDecoderTool,
+  },
+  {
+    id: 'image-enhancer',
+    name: 'Image Enhancer',
+    description: 'Adjust brightness, contrast, saturation, and sharpness with live canvas preview and PNG/JPEG export.',
+    categoryId: 'image',
+    icon: Sliders,
+    component: ImageEnhancerTool,
+  },
+  {
+    id: 'gradient-generator',
+    name: 'Gradient Generator',
+    description: 'Create beautiful CSS gradients with visual color stops, angle control, presets, and one-click CSS copy.',
+    categoryId: 'productivity',
+    icon: Palette,
+    component: GradientGeneratorTool,
+  },
+  {
+    id: 'file-shredder',
+    name: 'File Shredder',
+    description: 'Securely delete sensitive files with multi-pass overwrite before removal (DoD 5220.22-M standard).',
+    categoryId: 'security',
+    icon: Trash2,
+    component: FileShredderTool,
   },
 ]
 

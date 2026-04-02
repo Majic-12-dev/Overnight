@@ -17,6 +17,66 @@ export function ImageRotateFlipTool({ tool }: ImageRotateFlipToolProps) {
   const [mode, setMode] = useState<TransformMode>('rotate-90')
   const [isProcessing, setIsProcessing] = useState(false)
 
+  const loadImage = (src: string): Promise<HTMLImageElement> =>
+    new Promise((resolve, reject) => {
+      const img = new Image()
+      img.onload = () => {
+        URL.revokeObjectURL(src)
+        resolve(img)
+      }
+      img.onerror = () => reject(new Error('Failed to load image.'))
+      img.src = src
+    })
+
+  const applyTransform = async (file: File, mode: TransformMode): Promise<Blob> => {
+    const imgUrl = URL.createObjectURL(file)
+    try {
+      const img = await loadImage(imgUrl)
+      const needsSwap = mode === 'rotate-90' || mode === 'rotate-270'
+      const canvas = document.createElement('canvas')
+      canvas.width = needsSwap ? img.height : img.width
+      canvas.height = needsSwap ? img.width : img.height
+      const ctx = canvas.getContext('2d')
+      if (!ctx) throw new Error('Canvas 2D context unavailable')
+      ctx.clearRect(0, 0, canvas.width, canvas.height)
+      ctx.save()
+
+      if (mode === 'rotate-90') {
+        ctx.translate(canvas.width, 0)
+        ctx.rotate(Math.PI / 2)
+      } else if (mode === 'rotate-180') {
+        ctx.translate(canvas.width, canvas.height)
+        ctx.rotate(Math.PI)
+      } else if (mode === 'rotate-270') {
+        ctx.translate(0, canvas.height)
+        ctx.rotate(-Math.PI / 2)
+      } else if (mode === 'flip-h') {
+        ctx.translate(img.width, 0)
+        ctx.scale(-1, 1)
+      } else if (mode === 'flip-v') {
+        ctx.translate(0, img.height)
+        ctx.scale(1, -1)
+      }
+
+      ctx.drawImage(img, 0, 0)
+      ctx.restore()
+      const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'))
+      if (!blob) throw new Error('Failed to create transformed image blob.')
+      return blob
+    } finally {
+      URL.revokeObjectURL(imgUrl)
+    }
+  }
+
+  const downloadBlob = (blob: Blob, name: string) => {
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = name
+    a.click()
+    setTimeout(() => URL.revokeObjectURL(url), 1000)
+  }
+
   const handleProcess = async (
     files: Array<{ file: File; name: string }>,
     context: { setProgress: (v: number) => void; setResult: (r: ReactNode | null) => void; setError: (m: string | null) => void }
@@ -79,55 +139,6 @@ export function ImageRotateFlipTool({ tool }: ImageRotateFlipToolProps) {
     } finally {
       setIsProcessing(false)
     }
-  }
-
-  const applyTransform = async (file: File, mode: TransformMode): Promise<Blob> => {
-    const img = await loadImage(file)
-    const needsSwap = mode === 'rotate-90' || mode === 'rotate-270'
-    const canvas = document.createElement('canvas')
-    canvas.width = needsSwap ? img.height : img.width
-    canvas.height = needsSwap ? img.width : img.height
-    const ctx = canvas.getContext('2d')!
-    ctx.clearRect(0, 0, canvas.width, canvas.height)
-    ctx.save()
-
-    if (mode === 'rotate-90') {
-      ctx.translate(canvas.width, 0)
-      ctx.rotate(Math.PI / 2)
-    } else if (mode === 'rotate-180') {
-      ctx.translate(canvas.width, canvas.height)
-      ctx.rotate(Math.PI)
-    } else if (mode === 'rotate-270') {
-      ctx.translate(0, canvas.height)
-      ctx.rotate(-Math.PI / 2)
-    } else if (mode === 'flip-h') {
-      ctx.translate(img.width, 0)
-      ctx.scale(-1, 1)
-    } else if (mode === 'flip-v') {
-      ctx.translate(0, img.height)
-      ctx.scale(1, -1)
-    }
-
-    ctx.drawImage(img, 0, 0)
-    ctx.restore()
-    return new Promise((resolve) => canvas.toBlob((b) => resolve(b!), 'image/png'))
-  }
-
-  const loadImage = (file: File): Promise<HTMLImageElement> =>
-    new Promise((resolve, reject) => {
-      const img = new Image()
-      img.onload = () => resolve(img)
-      img.onerror = reject
-      img.src = URL.createObjectURL(file)
-    })
-
-  const downloadBlob = (blob: Blob, name: string) => {
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = name
-    a.click()
-    setTimeout(() => URL.revokeObjectURL(url), 1000)
   }
 
   return (
