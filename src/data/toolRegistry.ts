@@ -755,6 +755,38 @@ export const tools: ToolDefinition[] = [
     icon: Ratio,
     component: AspectRatioTool,
   },
+  {
+    id: 'file-mime-type',
+    name: 'MIME Type Detector',
+    description: 'Detect the actual MIME type of files regardless of their extension.',
+    categoryId: 'file',
+    icon: FileSearch,
+    component: MimeTypeDetectorTool,
+  },
+  {
+    id: 'yaml-json',
+    name: 'YAML to JSON',
+    description: 'Convert YAML documents to JSON format with validation.',
+    categoryId: 'text',
+    icon: Code2,
+    component: YamlToJsonTool,
+  },
+  {
+    id: 'snippet-manager',
+    name: 'Snippet Manager',
+    description: 'Organize, search, and reuse code snippets across projects.',
+    categoryId: 'text',
+    icon: Clipboard,
+    component: SnippetManagerTool,
+  },
+  {
+    id: 'password-audit',
+    name: 'Password Auditor',
+    description: 'Audit password strength and detect weak or reused passwords.',
+    categoryId: 'security',
+    icon: ShieldCheck,
+    component: PasswordAuditorTool,
+  },
 ]
 
 export const toolsByCategory = tools.reduce<Record<string, ToolDefinition[]>>((acc, tool) => {

@@ -99,32 +99,42 @@ export function ImageCropTool({ tool }: ImageCropToolProps) {
   }
 
   const cropImage = async (file: File, aspect: number): Promise<Blob> => {
-    const img = await loadImage(file)
-    const imgAspect = img.width / img.height
-    let cropW: number, cropH: number
-    if (imgAspect > aspect) {
-      cropH = img.height
-      cropW = img.height * aspect
-    } else {
-      cropW = img.width
-      cropH = img.width / aspect
+    const imgUrl = URL.createObjectURL(file)
+    try {
+      const img = await loadImage(imgUrl)
+      const imgAspect = img.width / img.height
+      let cropW: number, cropH: number
+      if (imgAspect > aspect) {
+        cropH = img.height
+        cropW = img.height * aspect
+      } else {
+        cropW = img.width
+        cropH = img.width / aspect
+      }
+      const sx = (img.width - cropW) / 2
+      const sy = (img.height - cropH) / 2
+      const canvas = document.createElement('canvas')
+      canvas.width = Math.round(cropW)
+      canvas.height = Math.round(cropH)
+      const ctx = canvas.getContext('2d')
+      if (!ctx) throw new Error('Failed to get canvas 2D context.')
+      ctx.drawImage(img, sx, sy, cropW, cropH, 0, 0, cropW, cropH)
+      const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'))
+      if (!blob) throw new Error('Failed to create cropped image blob.')
+      return blob
+    } finally {
+      URL.revokeObjectURL(imgUrl)
     }
-    const sx = (img.width - cropW) / 2
-    const sy = (img.height - cropH) / 2
-    const canvas = document.createElement('canvas')
-    canvas.width = Math.round(cropW)
-    canvas.height = Math.round(cropH)
-    const ctx = canvas.getContext('2d')!
-    ctx.drawImage(img, sx, sy, cropW, cropH, 0, 0, cropW, cropH)
-    return new Promise((resolve) => canvas.toBlob((b) => resolve(b!), 'image/png'))
   }
 
-  const loadImage = (file: File): Promise<HTMLImageElement> =>
+  const loadImage = (src: string): Promise<HTMLImageElement> =>
     new Promise((resolve, reject) => {
       const img = new Image()
-      img.onload = () => resolve(img)
-      img.onerror = reject
-      img.src = URL.createObjectURL(file)
+      img.onload = () => {
+        resolve(img)
+      }
+      img.onerror = () => reject(new Error('Failed to load image.'))
+      img.src = src
     })
 
   const downloadBlob = (blob: Blob, name: string) => {
