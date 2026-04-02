@@ -35,6 +35,7 @@
     "@zxing/library": "^0.21.3",
     "adm-zip": "^0.5.16",
     "archiver": "^7.0.1",
+    "bwip-js": "^4.9.0",
     "clsx": "^2.1.1",
     "diff": "^8.0.4",
     "dompurify": "^3.0.10",

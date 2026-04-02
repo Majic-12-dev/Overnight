@@ -110,13 +110,15 @@ function parseJwt(token: string): JwtState {
 
   let expiryInfo: JwtState['expiryInfo'] = null
   if (exp !== undefined || iat !== undefined) {
-    const expiresAt = typeof exp === 'number' ? new Date(exp * 1000) : null
-    const issuedAt = typeof iat === 'number' ? new Date(iat * 1000) : null
-    const expired = expiresAt !== null ? now > exp * 1000 : false
+    const expNum = typeof exp === 'number' ? exp : undefined
+    const iatNum = typeof iat === 'number' ? iat : undefined
+    const expiresAt = expNum !== undefined ? new Date(expNum * 1000) : null
+    const issuedAt = iatNum !== undefined ? new Date(iatNum * 1000) : null
+    const expired = expiresAt !== null && expNum !== undefined ? now > expNum * 1000 : false
 
     let timeRemaining: string | null = null
-    if (expiresAt !== null && !expired) {
-      const diff = exp * 1000 - now
+    if (expiresAt !== null && !expired && expNum !== undefined) {
+      const diff = expNum * 1000 - now
       if (diff > 0) {
         const days = Math.floor(diff / 86400000)
         const hours = Math.floor((diff % 86400000) / 3600000)

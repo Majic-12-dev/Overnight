@@ -19,6 +19,7 @@ import {
   Crop,
   Database,
   Diff,
+  Droplets,
   FileArchive,
   FileCode,
   FileEdit,
@@ -74,7 +75,7 @@ import {
   Volume2,
   Wand2,
 } from 'lucide-react'
-import { PdfRedactTool } from '@/tools/pdf/PdfRedactTool'
+import { PdfRedactionTool } from '@/tools/pdf/PdfRedactionTool'
 import { PdfFormFillerTool } from '@/tools/pdf/PdfFormFillerTool'
 import { PdfToTextTool } from '@/tools/pdf/PdfToTextTool'
 import { ImageRotateFlipTool } from '@/tools/image/ImageRotateFlipTool'
@@ -107,6 +108,7 @@ import { ImageRenameTool } from '@/tools/image/ImageRenameTool'
 import { ColorFilterTool } from '@/tools/image/ColorFilterTool'
 import { BackgroundRemoverTool } from '@/tools/image/BackgroundRemoverTool'
 import { ImageWatermarkTool } from '@/tools/image/ImageWatermarkTool'
+import { BarcodeGeneratorTool } from '@/tools/productivity/BarcodeGeneratorTool'
 import { TextMergeTool } from '@/tools/text/TextMergeTool'
 import { MarkdownTool } from '@/tools/text/MarkdownTool'
 import { TextDiffTool } from '@/tools/text/TextDiffTool'
@@ -172,11 +174,9 @@ import { SqlFormatterTool } from '@/tools/text/SQLFormatterTool'
 import { SvgOptimizerTool } from '@/tools/image/SVGOptimizerTool'
 import { RegexReplacerTool } from '@/tools/text/RegexReplacerTool'
 import { QuickNotesTool } from '@/tools/productivity/QuickNotesTool'
+import { BookmarkManagerTool } from '@/tools/productivity/BookmarkManagerTool'
 import { ArchiveExtractTool } from '@/tools/archive/ArchiveExtractTool'
 import { ColorPickerTool } from '@/tools/productivity/ColorPickerTool'
-import { BookmarkManagerTool } from '@/tools/productivity/BookmarkManagerTool'
-import { BarcodeGeneratorTool } from '@/tools/productivity/BarcodeGeneratorTool'
-
 import { CssBeautifierTool } from '@/tools/text/CSSBeautifierTool'
 
 export type ToolCategory = {
@@ -244,10 +244,10 @@ export const tools: ToolDefinition[] = [
   {
     id: 'pdf-redact',
     name: 'PDF Redaction',
-    description: 'Permanently remove sensitive content from PDF pages with black boxes',
+    description: 'Permanently remove sensitive content from PDF pages with black boxes.',
     categoryId: 'pdf',
     icon: Ban,
-    component: PdfRedactTool,
+    component: PdfRedactionTool,
   },
   {
     id: 'pdf-form-filler',
