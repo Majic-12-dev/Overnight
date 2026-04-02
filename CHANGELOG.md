@@ -7,13 +7,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Added
-- **QR Code Generator** (`qr:generate`): Tool in `src/tools/productivity/QrCodeGeneratorTool.tsx` — generates QR codes from user text with download support and input validation.
-- **Password Generator** (`password:generate`): Tool in `src/tools/security/PasswordGeneratorTool.tsx` — generates random passwords with customizable length and character set options.
-- **Text Diff** (`text:diff`): Tool in `src/tools/text/TextDiffTool.tsx` — compares two text inputs line-by-line and word-by-word, displaying additions, removals, and unchanged lines.
-- **JSON Formatter** (`json:format`): Tool in `src/tools/text/JsonFormatterTool.tsx` — parses, validates, and formats JSON input with indentation control and copy-to-clipboard.
+- **QR Code Generator** (`qr-code-generator`): Generate QR codes from texts/URLs with PNG download.
+- **Password Generator** (`password-generator`): Cryptographically secure passwords with configurable strength.
+- **Text Diff** (`text-diff`): Line-by-line text comparison with color-coded output.
+- **JSON Formatter** (`json-formatter`): Validate, pretty-print, and minify JSON with error reporting.
+- **CSV Converter** (`csv-converter`): Bidirectional CSV↔JSON conversion with column validation.
+- **Markdown Table Generator** (`markdown-table`): Dynamic table builder with live markdown preview.
+- **Unit Converter** (`unit-converter`): Convert length, weight, temperature, speed, data, and time.
+- **Regex Tester** (`regex-tester`): Test regex patterns with match highlighting and replace.
 
 ### Fixed
-- **Password Generator security**: Replaced `Math.random()` with `crypto.getRandomValues()` to ensure cryptographically secure password generation.
+- **unit-converter**: Resolve unit ID collision ('ms' used for both m/s and ms).
+- **password-generator**: Replace `Math.random()` with `crypto.getRandomValues()` for cryptographic security.
+- **password-generator, JsonFormatterTool**: Fix `setTimeout` memory leak with cleanup refs.
 
 ---
 
