@@ -25,7 +25,12 @@
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/modifiers": "^9.0.0",
     "@dnd-kit/sortable": "^10.0.0",
+    "@tesseract.js-data/deu": "^1.0.0",
+    "@tesseract.js-data/eng": "^1.0.0",
+    "@tesseract.js-data/fra": "^1.0.0",
+    "@tesseract.js-data/spa": "^1.0.0",
     "adm-zip": "^0.5.16",
+    "archiver": "^7.0.1",
     "clsx": "^2.1.1",
     "dompurify": "^3.0.10",
     "electron-updater": "^6.3.9",
@@ -38,18 +43,16 @@
     "sharp": "^0.34.5",
     "tailwind-merge": "^3.4.0",
     "tesseract.js": "^7.0.0",
-    "zustand": "^5.0.11",
-    "@tesseract.js-data/eng": "^1.0.0",
-    "@tesseract.js-data/spa": "^1.0.0",
-    "@tesseract.js-data/fra": "^1.0.0",
-    "@tesseract.js-data/deu": "^1.0.0",
-    "archiver": "^7.0.1"
+    "yauzl": "^3.3.0",
+    "zustand": "^5.0.11"
   },
   "devDependencies": {
     "@playwright/test": "^1.48.2",
     "@types/adm-zip": "^0.5.8",
+    "@types/archiver": "^7.0.0",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
+    "@types/yauzl": "^2.10.3",
     "@vitejs/plugin-react": "^4.3.3",
     "autoprefixer": "^10.4.24",
     "electron": "^33.2.0",
@@ -59,11 +62,10 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "tailwindcss": "^3.4.19",
-    "typescript": "^5.4.2",
+    "typescript": "^5.9.3",
     "vite": "^5.4.11",
     "vite-plugin-electron": "^0.29.0",
     "vite-plugin-electron-renderer": "^0.14.6",
-    "vitest": "^2.1.5",
-    "@types/archiver": "^7.0.0"
+    "vitest": "^2.1.5"
   }
 }
