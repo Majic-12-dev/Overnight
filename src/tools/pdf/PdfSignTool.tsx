@@ -35,6 +35,27 @@ export function PdfSignTool({ tool }: PdfSignToolProps) {
 
   const imageInputRef = useRef<HTMLInputElement>(null)
 
+  // Track blob URLs for cleanup
+  const [resultBlobUrls, setResultBlobUrls] = useState<string[]>([])
+
+  // Revoke all blob URLs on unmount or when results change
+  useEffect(() => {
+    return () => {
+      resultBlobUrls.forEach((url) => URL.revokeObjectURL(url))
+    }
+  }, [resultBlobUrls])
+
+  const revokeAndDownload = useCallback((url: string, filename: string) => {
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    // Revoke after a short delay to ensure the download starts
+    setTimeout(() => URL.revokeObjectURL(url), 2000)
+  }, [])
+
   const hexToRgb = useCallback(
     (hex: string): { r: number; g: number; b: number } => {
       const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex)
@@ -89,22 +110,22 @@ export function PdfSignTool({ tool }: PdfSignToolProps) {
   }, [colorHex, getCtx])
 
   const getCanvasPos = useCallback(
-    (e: React.MouseEvent<HTMLCanvasElement>) => {
+    (clientX: number, clientY: number) => {
       const canvas = canvasRef.current
       if (!canvas) return { x: 0, y: 0 }
       const rect = canvas.getBoundingClientRect()
-      return { x: e.clientX - rect.left, y: e.clientY - rect.top }
+      return { x: clientX - rect.left, y: clientY - rect.top }
     },
     [],
   )
 
   const handleDrawStart = useCallback(
-    (e: React.MouseEvent<HTMLCanvasElement>) => {
+    (clientX: number, clientY: number) => {
       const ctx = getCtx()
       if (!ctx) return
       setIsDrawing(true)
       hasDrawnRef.current = true
-      const pos = getCanvasPos(e)
+      const pos = getCanvasPos(clientX, clientY)
       ctx.beginPath()
       ctx.moveTo(pos.x, pos.y)
     },
@@ -112,11 +133,11 @@ export function PdfSignTool({ tool }: PdfSignToolProps) {
   )
 
   const handleDrawMove = useCallback(
-    (e: React.MouseEvent<HTMLCanvasElement>) => {
+    (clientX: number, clientY: number) => {
       if (!isDrawing) return
       const ctx = getCtx()
       if (!ctx) return
-      const pos = getCanvasPos(e)
+      const pos = getCanvasPos(clientX, clientY)
       ctx.lineTo(pos.x, pos.y)
       ctx.stroke()
     },
@@ -126,6 +147,33 @@ export function PdfSignTool({ tool }: PdfSignToolProps) {
   const handleDrawEnd = useCallback(() => {
     setIsDrawing(false)
   }, [])
+
+  // Mouse event handlers (wrap clientX/clientY)
+  const onMouseDown = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+    handleDrawStart(e.clientX, e.clientY)
+  }, [handleDrawStart])
+
+  const onMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+    handleDrawMove(e.clientX, e.clientY)
+  }, [handleDrawMove])
+
+  // Touch event handlers
+  const onTouchStart = useCallback((e: React.TouchEvent<HTMLCanvasElement>) => {
+    e.preventDefault()
+    const touch = e.touches[0]
+    if (touch) handleDrawStart(touch.clientX, touch.clientY)
+  }, [handleDrawStart])
+
+  const onTouchMove = useCallback((e: React.TouchEvent<HTMLCanvasElement>) => {
+    e.preventDefault()
+    const touch = e.changedTouches[0]
+    if (touch) handleDrawMove(touch.clientX, touch.clientY)
+  }, [handleDrawMove])
+
+  const onTouchEnd = useCallback((e: React.TouchEvent<HTMLCanvasElement>) => {
+    e.preventDefault()
+    handleDrawEnd()
+  }, [handleDrawEnd])
 
   const handleImageUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -299,6 +347,9 @@ export function PdfSignTool({ tool }: PdfSignToolProps) {
         throw new Error('No files could be processed.')
       }
 
+      // Track blob URLs for cleanup
+      setResultBlobUrls(results.map((r) => r.blobUrl))
+
       context.setProgress(100)
       context.setResult(
         <div className="space-y-4">
@@ -317,21 +368,20 @@ export function PdfSignTool({ tool }: PdfSignToolProps) {
                     {(r.byteSize / 1024).toFixed(1)} KB
                   </div>
                 </div>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => {
-                    const a = document.createElement('a')
-                    a.href = r.blobUrl
-                    a.download = `signed_${r.name}`
-                    document.body.appendChild(a)
-                    a.click()
-                    document.body.removeChild(a)
+                <a
+                  href={r.blobUrl}
+                  download={`signed_${r.name}`}
+                  className="inline-flex items-center rounded-lg bg-secondary px-2.5 py-1.5 text-xs font-medium text-secondary-foreground hover:bg-secondary/80 transition-colors"
+                  onClick={(e) => {
+                    e.preventDefault()
+                    revokeAndDownload(r.blobUrl, `signed_${r.name}`)
                   }}
+                  role="button"
+                  aria-label={`Download signed ${r.name}`}
                 >
                   <FileDown className="mr-1 h-3 w-3" />
                   Download
-                </Button>
+                </a>
               </div>
             ))}
           </div>
@@ -340,14 +390,10 @@ export function PdfSignTool({ tool }: PdfSignToolProps) {
             size="sm"
             onClick={() => {
               results.forEach((r) => {
-                const a = document.createElement('a')
-                a.href = r.blobUrl
-                a.download = `signed_${r.name}`
-                document.body.appendChild(a)
-                a.click()
-                document.body.removeChild(a)
+                revokeAndDownload(r.blobUrl, `signed_${r.name}`)
               })
             }}
+            aria-label="Download all signed files"
           >
             <FileDown className="mr-1 h-3 w-3" />
             Download All
@@ -368,8 +414,8 @@ export function PdfSignTool({ tool }: PdfSignToolProps) {
       options={
         <div className="space-y-4 text-sm">
           <div className="space-y-2">
-            <div className="text-xs font-semibold uppercase text-muted">Signature Mode</div>
-            <Select value={mode} onChange={(event) => setMode(event.target.value as SignatureMode)}>
+            <div id="signatureMode" className="text-xs font-semibold uppercase text-muted">Signature Mode</div>
+            <Select value={mode} onChange={(event) => setMode(event.target.value as SignatureMode)} aria-labelledby="signatureMode">
               <option value="draw">Draw</option>
               <option value="text">Text</option>
               <option value="image">Image</option>
@@ -378,28 +424,32 @@ export function PdfSignTool({ tool }: PdfSignToolProps) {
 
           {mode === 'text' && (
             <div className="space-y-2">
-              <div className="text-xs font-semibold uppercase text-muted">Signature Text</div>
+              <div id="signatureText" className="text-xs font-semibold uppercase text-muted">Signature Text</div>
               <Input
                 value={signText}
                 onChange={(event) => setSignText(event.target.value)}
                 placeholder="Type your signature..."
+                aria-labelledby="signatureText"
               />
               <Select
                 value={fontFamily}
                 onChange={(event) => setFontFamily(event.target.value)}
+                aria-label="Font family"
               >
                 <option value="Helvetica">Helvetica</option>
                 <option value="TimesRoman">Times Roman</option>
                 <option value="Courier">Courier</option>
               </Select>
               <div className="space-y-1">
-                <label className="text-xs text-muted">Font Size: {fontSize}</label>
+                <label htmlFor="fontSize" className="text-xs text-muted">Font Size: {fontSize}</label>
                 <Input
+                  id="fontSize"
                   type="number"
                   min={12}
                   max={120}
                   value={fontSize}
                   onChange={(event) => setFontSize(Number(event.target.value))}
+                  aria-label="Font size"
                 />
               </div>
             </div>
@@ -407,20 +457,25 @@ export function PdfSignTool({ tool }: PdfSignToolProps) {
 
           {mode === 'draw' && (
             <div className="space-y-2">
-              <div className="text-xs font-semibold uppercase text-muted">Draw Signature</div>
+              <div id="drawSignature" className="text-xs font-semibold uppercase text-muted">Draw Signature</div>
               <div className="rounded-xl border border-border bg-white">
                 <canvas
                   ref={canvasRef}
                   className="h-32 w-full cursor-crosshair touch-none"
                   style={{ display: 'block' }}
-                  onMouseDown={handleDrawStart}
-                  onMouseMove={handleDrawMove}
+                  onMouseDown={onMouseDown}
+                  onMouseMove={onMouseMove}
                   onMouseUp={handleDrawEnd}
                   onMouseLeave={handleDrawEnd}
+                  onTouchStart={onTouchStart}
+                  onTouchMove={onTouchMove}
+                  onTouchEnd={onTouchEnd}
+                  role="img"
+                  aria-labelledby="drawSignature"
                 />
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={clearCanvas}>
+                <Button variant="outline" size="sm" onClick={clearCanvas} aria-label="Clear signature canvas">
                   <Eraser className="mr-1 h-3 w-3" />
                   Clear
                 </Button>
@@ -430,13 +485,14 @@ export function PdfSignTool({ tool }: PdfSignToolProps) {
 
           {mode === 'image' && (
             <div className="space-y-2">
-              <div className="text-xs font-semibold uppercase text-muted">Upload Signature</div>
+              <div id="uploadSignature" className="text-xs font-semibold uppercase text-muted">Upload Signature</div>
               <input
                 ref={imageInputRef}
                 type="file"
                 accept="image/png,image/jpeg"
                 onChange={handleImageUpload}
                 className="hidden"
+                aria-label="Upload signature image"
               />
               {imagePath ? (
                 <div className="space-y-2">
@@ -452,6 +508,7 @@ export function PdfSignTool({ tool }: PdfSignToolProps) {
                       setImagePath(null)
                       setImageFile(null)
                     }}
+                    aria-label="Remove signature image"
                   >
                     <Trash2 className="mr-1 h-3 w-3" />
                     Remove
@@ -462,6 +519,7 @@ export function PdfSignTool({ tool }: PdfSignToolProps) {
                   variant="outline"
                   size="sm"
                   onClick={() => imageInputRef.current?.click()}
+                  aria-label="Choose signature image file"
                 >
                   <ImageUp className="mr-1 h-3 w-3" />
                   Choose Image
@@ -471,36 +529,42 @@ export function PdfSignTool({ tool }: PdfSignToolProps) {
           )}
 
           <div className="space-y-2">
-            <div className="text-xs font-semibold uppercase text-muted">Appearance</div>
+            <div id="appearance" className="text-xs font-semibold uppercase text-muted">Appearance</div>
             <div className="space-y-1">
-              <label className="text-xs text-muted">Opacity: {opacity}</label>
+              <label htmlFor="opacityInput" className="text-xs text-muted">Opacity: {opacity}</label>
               <Input
+                id="opacityInput"
                 type="number"
                 min={0.1}
                 max={1}
                 step={0.05}
                 value={opacity}
                 onChange={(event) => setOpacity(Number(event.target.value))}
+                aria-label="Opacity"
               />
             </div>
             <div className="space-y-1">
-              <label className="text-xs text-muted">Rotation: {rotation}°</label>
+              <label htmlFor="rotationInput" className="text-xs text-muted">Rotation: {rotation}°</label>
               <Input
+                id="rotationInput"
                 type="number"
                 min={-180}
                 max={180}
                 value={rotation}
                 onChange={(event) => setRotation(Number(event.target.value))}
+                aria-label="Rotation degrees"
               />
             </div>
             <div className="space-y-1">
-              <label className="text-xs text-muted">Color</label>
+              <label htmlFor="colorInput" className="text-xs text-muted">Color</label>
               <div className="flex items-center gap-2">
                 <input
+                  id="colorInput"
                   type="color"
                   value={colorHex}
                   onChange={(event) => setColorHex(event.target.value)}
                   className="h-8 w-10 cursor-pointer rounded border border-border"
+                  aria-label="Signature color"
                 />
                 <span className="text-xs text-muted font-mono">{colorHex}</span>
               </div>
@@ -508,10 +572,11 @@ export function PdfSignTool({ tool }: PdfSignToolProps) {
           </div>
 
           <div className="space-y-2">
-            <div className="text-xs font-semibold uppercase text-muted">Apply To</div>
+            <div id="applyTo" className="text-xs font-semibold uppercase text-muted">Apply To</div>
             <Select
               value={pageSelection}
               onChange={(event) => setPageSelection(event.target.value as typeof pageSelection)}
+              aria-labelledby="applyTo"
             >
               <option value="all">All Pages</option>
               <option value="first">First Page Only</option>

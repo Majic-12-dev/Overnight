@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import { PDFDocument, rgb } from 'pdf-lib'
 import type { ToolDefinition } from '@/data/toolRegistry'
@@ -36,6 +36,15 @@ export function PdfAnnotatorTool({ tool }: PdfAnnotatorToolProps) {
   const [textX, setTextX] = useState(50)
   const [textY, setTextY] = useState(50)
   const [highlightY, setHighlightY] = useState(50)
+
+  // Track blob URLs for cleanup on unmount
+  const [resultBlobUrls, setResultBlobUrls] = useState<string[]>([])
+
+  useEffect(() => {
+    return () => {
+      resultBlobUrls.forEach((url) => URL.revokeObjectURL(url))
+    }
+  }, [resultBlobUrls])
 
   const highlightColors: Record<string, { hex: string; label: string }> = {
     yellow: { hex: '#ffff00', label: 'Yellow' },
@@ -199,6 +208,9 @@ export function PdfAnnotatorTool({ tool }: PdfAnnotatorToolProps) {
         throw new Error('No files were processed successfully.')
       }
 
+      // Track blob URLs for cleanup
+      setResultBlobUrls(results.map((r) => r.blobUrl))
+
       context.setResult(
         <div className="space-y-3">
           <p className="text-sm font-medium text-foreground">
@@ -207,10 +219,18 @@ export function PdfAnnotatorTool({ tool }: PdfAnnotatorToolProps) {
           {results.map((r) => (
             <div key={r.name} className="flex items-center gap-2">
               <span className="text-xs text-muted flex-1 truncate">{r.name}</span>
-              <a href={r.blobUrl} download={r.name}>
-                <Button variant="ghost" size="sm" className="gap-1">
-                  <FileDown className="h-4 w-4" /> Download
-                </Button>
+              <a
+                href={r.blobUrl}
+                download={r.name}
+                className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs hover:bg-base/80"
+                onClick={(e) => {
+                  e.preventDefault()
+                  revokeAndDownload(r.blobUrl, r.name)
+                }}
+                role="button"
+                aria-label={`Download ${r.name}`}
+              >
+                <FileDown className="h-4 w-4" /> Download
               </a>
             </div>
           ))}
@@ -223,19 +243,25 @@ export function PdfAnnotatorTool({ tool }: PdfAnnotatorToolProps) {
     }
   }
 
-  const colorOptions = [
-    { value: 'default', label: annotationType === 'highlight' ? 'Highlight' : 'Default' },
-    ...Object.entries(highlightColors).map(([k, v]) => ({ value: k, label: v.label })),
-    { value: 'custom', label: 'Custom' },
-  ]
+  // Revoke each URL after download with a delay
+  const revokeAndDownload = useCallback((url: string, filename: string) => {
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    setTimeout(() => URL.revokeObjectURL(url), 2000)
+  }, [])
 
   return (
     <BaseToolLayout title={tool.name} description={tool.description} onProcess={handleProcess} accept=".pdf">
       <div className="space-y-4">
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
-            <label className="text-xs font-semibold text-foreground">Annotation Type</label>
+            <label htmlFor="annotationType" className="text-xs font-semibold text-foreground">Annotation Type</label>
             <Select
+              id="annotationType"
               value={annotationType}
               onChange={(e) => setAnnotationType(e.target.value as AnnotationType)}
             >
@@ -244,8 +270,9 @@ export function PdfAnnotatorTool({ tool }: PdfAnnotatorToolProps) {
             </Select>
           </div>
           <div>
-            <label className="text-xs font-semibold text-foreground">Font</label>
+            <label htmlFor="fontFamily" className="text-xs font-semibold text-foreground">Font</label>
             <Select
+              id="fontFamily"
               value={fontFamily}
               onChange={(e) => setFontFamily(e.target.value as FontFamily)}
               disabled={isHighlightMode}
@@ -258,41 +285,48 @@ export function PdfAnnotatorTool({ tool }: PdfAnnotatorToolProps) {
         </div>
 
         <div>
-          <label className="text-xs font-semibold text-foreground">Annotation Text</label>
+          <label htmlFor="annotationText" className="text-xs font-semibold text-foreground">Annotation Text</label>
           <textarea
+            id="annotationText"
             className="w-full rounded-xl border border-border bg-base/70 px-3 py-2 text-sm text-text placeholder:text-muted focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent resize-y"
             value={annotationText}
             onChange={(e) => setAnnotationText(e.target.value)}
             placeholder="Enter annotation text..."
             rows={3}
+            aria-label="Annotation text"
           />
         </div>
 
         <div className="grid gap-4 sm:grid-cols-3">
           <div>
-            <label className="text-xs font-semibold text-foreground">Font Size</label>
+            <label htmlFor="fontSize" className="text-xs font-semibold text-foreground">Font Size</label>
             <Input
+              id="fontSize"
               type="number"
               value={fontSize}
               onChange={(e) => setFontSize(Number(e.target.value))}
               min={8}
               max={72}
+              aria-label="Font size"
             />
           </div>
           <div>
-            <label className="text-xs font-semibold text-foreground">Opacity</label>
+            <label htmlFor="opacity" className="text-xs font-semibold text-foreground">Opacity</label>
             <Input
+              id="opacity"
               type="number"
               value={opacity}
               onChange={(e) => setOpacity(Number(e.target.value))}
               min={0.1}
               max={1}
               step={0.05}
+              aria-label="Opacity"
             />
           </div>
           <div>
-            <label className="text-xs font-semibold text-foreground">Color</label>
+            <label htmlFor="color" className="text-xs font-semibold text-foreground">Color</label>
             <Select
+              id="color"
               value={useCustomColor ? 'custom' : colorHex === '#ffff00' && annotationType === 'highlight' ? 'yellow' : 'default'}
               onChange={(e) => {
                 const v = e.target.value
@@ -319,52 +353,61 @@ export function PdfAnnotatorTool({ tool }: PdfAnnotatorToolProps) {
 
         {useCustomColor && (
           <div>
-            <label className="text-xs font-semibold text-foreground">Custom Color Hex</label>
+            <label htmlFor="customColorHex" className="text-xs font-semibold text-foreground">Custom Color Hex</label>
             <Input
+              id="customColorHex"
               value={colorHex}
               onChange={(e) => setColorHex(e.target.value)}
               placeholder="#ffffff"
+              aria-label="Custom color hex"
             />
           </div>
         )}
 
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
-            <label className="text-xs font-semibold text-foreground">X Position</label>
+            <label htmlFor="textX" className="text-xs font-semibold text-foreground">X Position</label>
             <Input
+              id="textX"
               type="number"
               value={textX}
               onChange={(e) => setTextX(Number(e.target.value))}
               min={0}
+              aria-label="X position"
             />
           </div>
           {isHighlightMode ? (
             <div>
-              <label className="text-xs font-semibold text-foreground">Y Position (from top)</label>
+              <label htmlFor="highlightY" className="text-xs font-semibold text-foreground">Y Position (from top)</label>
               <Input
+                id="highlightY"
                 type="number"
                 value={highlightY}
                 onChange={(e) => setHighlightY(Number(e.target.value))}
                 min={0}
+                aria-label="Y position from top"
               />
             </div>
           ) : (
             <div>
-              <label className="text-xs font-semibold text-foreground">Y Position (from bottom)</label>
+              <label htmlFor="textY" className="text-xs font-semibold text-foreground">Y Position (from bottom)</label>
               <Input
-                type="number"
-                value={textY}
-                onChange={(e) => setTextY(Number(e.target.value))}
-                min={0}
-              />
+              id="textY"
+              type="number"
+              value={textY}
+              onChange={(e) => setTextY(Number(e.target.value))}
+              min={0}
+              aria-label="Y position from bottom"
+            />
             </div>
           )}
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
-            <label className="text-xs font-semibold text-foreground">Page Range</label>
+            <label htmlFor="pageRange" className="text-xs font-semibold text-foreground">Page Range</label>
             <Select
+              id="pageRange"
               value={pageRangeType}
               onChange={(e) => setPageRangeType(e.target.value as 'all' | 'specific')}
             >
@@ -374,11 +417,13 @@ export function PdfAnnotatorTool({ tool }: PdfAnnotatorToolProps) {
           </div>
           {pageRangeType === 'specific' && (
             <div>
-              <label className="text-xs font-semibold text-foreground">Pages (e.g., 1-3,5)</label>
+              <label htmlFor="specificPages" className="text-xs font-semibold text-foreground">Pages (e.g., 1-3,5)</label>
               <Input
+                id="specificPages"
                 value={specificPages}
                 onChange={(e) => setSpecificPages(e.target.value)}
                 placeholder="1-3,5,8"
+                aria-label="Specific pages"
               />
             </div>
           )}

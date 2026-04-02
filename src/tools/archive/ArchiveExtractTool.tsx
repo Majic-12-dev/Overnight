@@ -156,12 +156,12 @@ export function ArchiveExtractTool({ tool }: ArchiveExtractToolProps) {
     <BaseToolLayout
       title={tool.name}
       description={tool.description}
-      accept=".tar,.tar.gz,.tgz,.gz,.bz2,.tar.bz2,.tbz2,.xz,.tar.xz,.txz"
+      accept=".tar,.tar.gz,.tgz,.gz"
       instructions="Drop archive files here or click to browse your device."
       options={
         <div className="space-y-4 text-sm">
           <div className="text-xs text-muted">
-            Supports TAR, TAR.GZ, TAR.BZ2, and TAR.XZ archives. View contents and extract individual files or everything.
+            Supports TAR and TAR.GZ archives. View contents and extract individual files or everything.
           </div>
           <div className="text-xs text-muted">
             Processing happens locally in your browser -- no files are uploaded.
