@@ -39,6 +39,7 @@ import {
   Link2,
   ListTodo,
   Maximize,
+  Network,
   Palette,
   PencilRuler,
   QrCode,
@@ -148,6 +149,9 @@ import { ColorContrastCheckerTool } from '@/tools/productivity/ColorContrastChec
 import { DataConverterTool } from '@/tools/productivity/DataConverterTool'
 import { MetaTagGeneratorTool } from '@/tools/text/MetaTagGeneratorTool'
 import { CodeMinifierTool } from '@/tools/text/CodeMinifierTool'
+import { JwtInspectorTool } from '@/tools/security/JwtInspectorTool'
+import { UrlEncoderTool } from '@/tools/text/UrlEncoderTool'
+import { SubnetCalculatorTool } from '@/tools/network/SubnetCalculatorTool'
 export type ToolCategory = {
   id: string
   label: string
@@ -897,6 +901,30 @@ export const tools: ToolDefinition[] = [
     categoryId: 'text',
     icon: Code,
     component: CodeMinifierTool,
+  },
+  {
+    id: 'jwt-inspector',
+    name: 'JWT Inspector',
+    description: 'Inspect and decode JSON Web Tokens. View header, payload, expiry status, and claims.',
+    categoryId: 'security',
+    icon: KeyRound,
+    component: JwtInspectorTool,
+  },
+  {
+    id: 'url-encoder',
+    name: 'URL Encoder / Decoder',
+    description: 'Encode or decode URLs and query parameters with strict and full-URL modes.',
+    categoryId: 'text',
+    icon: Link2,
+    component: UrlEncoderTool,
+  },
+  {
+    id: 'subnet-calc',
+    name: 'IPv4 Subnet Calculator',
+    description: 'Calculate network address, broadcast, gateway, host range, and wildcard mask from CIDR.',
+    categoryId: 'productivity',
+    icon: Network,
+    component: SubnetCalculatorTool,
   },
 ]
 

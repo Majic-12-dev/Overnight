@@ -28,6 +28,7 @@ import {
   stripExif,
   filterImages,
   renameImages,
+  watermarkImages,
 } from './tools/image'
 import { mergeTextFiles } from './tools/text'
 import { bulkRename, deleteEmptyFolders, scanLargeFiles, organizeFiles, deleteFiles, shredFiles } from './tools/file'
@@ -229,6 +230,7 @@ ipcMain.handle('image:resize', async (_, payload) => resizeImages(payload))
 ipcMain.handle('image:compress', async (_, payload) => compressImages(payload))
 ipcMain.handle('image:to-pdf', async (_, payload) => imagesToPdf(payload))
 ipcMain.handle('image:strip-exif', async (_, payload) => stripExif(payload))
+ipcMain.handle('image:watermark', async (_, payload) => watermarkImages(payload))
 ipcMain.handle('image:filter', async (_, payload) => filterImages(payload))
 ipcMain.handle('image:rename', async (_, payload) => renameImages(payload))
 
