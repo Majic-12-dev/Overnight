@@ -115,10 +115,14 @@ export function PdfFormFillerTool({ tool }: PdfFormFillerToolProps) {
 
         form.flatten()
         const outputBytes = await pdfDoc.save()
-        const blob = new Blob([new Uint8Array(outputBytes)] as BlobPart[], { type: 'application/pdf' })
+        const blob = new Blob([outputBytes.buffer as BlobPart], { type: 'application/pdf' })
         const blobUrl = URL.createObjectURL(blob)
 
-        context.setProgress(100)
+                context.setProgress(100)
+
+        // Auto-revoke blob URL after 5 minutes
+        const timer = setTimeout(() => URL.revokeObjectURL(blobUrl), 5 * 60 * 1000)
+
         context.setResult(
           <div className="space-y-3">
             <p className="text-sm font-medium text-foreground">

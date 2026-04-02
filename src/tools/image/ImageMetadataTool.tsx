@@ -50,7 +50,8 @@ export function ImageMetadataTool({ tool }: ImageMetadataToolProps) {
           const file = files[0]
           const img = file.file
           if (imageUrl) URL.revokeObjectURL(imageUrl)
-          setImageUrl(URL.createObjectURL(img))
+          const previewUrl = URL.createObjectURL(img)
+          setImageUrl(previewUrl)
 
           const parsed = await exifr.parse(img, {
             tiff: true,
@@ -171,6 +172,9 @@ export function ImageMetadataTool({ tool }: ImageMetadataToolProps) {
           }
           const blob = new Blob([ab], { type: mime })
           const url = URL.createObjectURL(blob)
+
+          // Revoke old result URL
+          if (resultUrl) URL.revokeObjectURL(resultUrl)
 
           context.setProgress(100)
           setResultUrl(url)

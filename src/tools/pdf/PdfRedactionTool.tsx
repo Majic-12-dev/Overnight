@@ -87,8 +87,9 @@ export function PdfRedactionTool({ tool }: PdfRedactionToolProps) {
           }
 
           const pdfBytes = await pdfDoc.save()
-          const blob = new Blob([pdfBytes as BlobPart], { type: 'application/pdf' })
+          const blob = new Blob([pdfBytes.buffer as BlobPart], { type: 'application/pdf' })
           const blobUrl = URL.createObjectURL(blob)
+
           results.push({
             name: toolFile.name.replace(/\.pdf$/i, '') + '_redacted.pdf',
             blobUrl,
@@ -97,6 +98,10 @@ export function PdfRedactionTool({ tool }: PdfRedactionToolProps) {
         }
 
         context.setProgress(100)
+
+        // Auto-revoke blob URLs after 5 minutes to prevent memory leaks
+        setTimeout(() => results.forEach((r) => URL.revokeObjectURL(r.blobUrl)), 5 * 60 * 1000)
+
         context.setResult(
           <div className="space-y-3">
             <p className="text-sm font-medium text-foreground">
