@@ -1,5 +1,6 @@
-import { promises as fs } from 'node:fs'
+import { createReadStream, createWriteStream, promises as fs } from 'node:fs'
 import path from 'node:path'
+import { pipeline } from 'node:stream/promises'
 import { ensureDir } from '../utils/fs'
 import { validatePaths } from '../utils/pathValidation'
 
@@ -9,6 +10,21 @@ export type MergeTextPayload = {
   outputName: string
   separator: string
   includeHeader: boolean
+}
+
+/**
+ * Writes a string chunk to a WriteStream, resolving when flushed and rejecting on error.
+ */
+function writeToStream(
+  stream: ReturnType<typeof createWriteStream>,
+  data: string,
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    stream.write(data, 'utf-8', (err: Error | null | undefined) => {
+      if (err) reject(err)
+      else resolve()
+    })
+  })
 }
 
 export async function mergeTextFiles({
@@ -26,18 +42,38 @@ export async function mergeTextFiles({
   validatePaths(inputPaths, outputPath)
   await ensureDir(outputDir)
 
-  const pieces: string[] = []
+  const writeStream = createWriteStream(outputPath, { encoding: 'utf-8' })
 
-  for (const filePath of inputPaths) {
-    const content = await fs.readFile(filePath, 'utf-8')
-    if (includeHeader) {
-      pieces.push(`----- ${path.basename(filePath)} -----`)
+  try {
+    for (let i = 0; i < inputPaths.length; i++) {
+      const filePath = inputPaths[i]
+
+      // Write separator between files (not before the first)
+      if (i > 0) {
+        await writeToStream(writeStream, separator || '\n')
+      }
+
+      // Write the optional file header with a trailing newline
+      if (includeHeader) {
+        await writeToStream(writeStream, `----- ${path.basename(filePath)} -----\n`)
+      }
+
+      // Stream the file content to the output
+      const readStream = createReadStream(filePath, { encoding: 'utf-8' })
+      await pipeline(readStream, writeStream, { end: false })
     }
-    pieces.push(content)
+  } catch (err) {
+    writeStream.destroy(err as Error)
+    throw err
   }
 
-  const merged = pieces.join(separator || '\n')
-  await fs.writeFile(outputPath, merged, 'utf-8')
+  // Close the write stream
+  await new Promise<void>((resolve, reject) => {
+    writeStream.end((err: Error | null | undefined) => {
+      if (err) reject(err)
+      else resolve()
+    })
+  })
 
   return { outputPath, sourceCount: inputPaths.length }
 }
