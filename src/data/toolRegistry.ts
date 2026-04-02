@@ -173,6 +173,7 @@ import { SvgOptimizerTool } from '@/tools/image/SVGOptimizerTool'
 import { RegexReplacerTool } from '@/tools/text/RegexReplacerTool'
 import { QuickNotesTool } from '@/tools/productivity/QuickNotesTool'
 import { ArchiveExtractTool } from '@/tools/archive/ArchiveExtractTool'
+import { ColorPickerTool } from '@/tools/productivity/ColorPickerTool'
 import { BookmarkManagerTool } from '@/tools/productivity/BookmarkManagerTool'
 import { BarcodeGeneratorTool } from '@/tools/productivity/BarcodeGeneratorTool'
 
@@ -671,6 +672,14 @@ export const tools: ToolDefinition[] = [
     categoryId: 'productivity',
     icon: Palette,
     component: ColorPaletteTool,
+  },
+  {
+    id: 'color-picker',
+    name: 'Color Picker',
+    description: 'Pick, convert, and preview colors between HEX, RGB, and HSL formats with eyedropper support.',
+    categoryId: 'productivity',
+    icon: Droplets,
+    component: ColorPickerTool,
   },
   {
     id: 'timestamp-converter',
