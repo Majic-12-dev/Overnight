@@ -49,3 +49,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **PDF Unlock** (`pdf:unlock`): IPC handler in `electron/main/index.ts` and `unlockPdf` function in `electron/main/tools/pdf.ts` — removes PDF restrictions when the user provides a known password.
 
 ---
+
+## Batch 7 — 5 New Tools (2026-04-02)
+
+### New Tools
+- **QR Code Decoder** — Decode QR codes from images using jsQR library. Supports batch scanning, URL detection with open-link action, and clipboard copy.
+- **Image Enhancer** — Canvas-based brightness, contrast, saturation, and sharpness adjustments with live preview, before/after comparison, and PNG/JPEG export.
+- **Gradient Generator** — Visual CSS gradient creator with color stops, angle control, presets, and one-click CSS copy.
+- **File Shredder** — Secure file deletion with DoD 5220.22-M (3/7/35-pass) overwrite standards and verification.
+
+### Infrastructure
+- Added `jsqr` dependency for client-side QR decoding
+- New `Slider` UI component with ARIA accessibility attributes
+- All new tools integrated into toolRegistry with proper categories and icons

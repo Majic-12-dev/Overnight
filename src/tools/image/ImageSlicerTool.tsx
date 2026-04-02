@@ -1,0 +1,320 @@
+import type { ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import type { ToolDefinition } from '@/data/toolRegistry'
+import { BaseToolLayout } from '@/components/tools/BaseToolLayout'
+import type { ToolFile } from '@/components/tools/BaseToolLayout'
+import { Button } from '@/components/ui/Button'
+import { Card } from '@/components/ui/Card'
+import { Select } from '@/components/ui/Select'
+import { Badge } from '@/components/ui/Badge'
+import { Download, Grid3x3 } from 'lucide-react'
+
+type SliceData = {
+  dataUrl: string
+  col: number
+  row: number
+}
+
+type ImageSlicerToolProps = {
+  tool: ToolDefinition
+}
+
+export function ImageSlicerTool({ tool }: ImageSlicerToolProps) {
+  const imageRef = useRef<HTMLImageElement | null>(null)
+  const sliceUrlsRef = useRef<string[]>([])
+  const imageSrcRef = useRef<string | null>(null)
+
+  // Refs to retain BaseToolLayout context callbacks after handleSlice completes
+  const resultContextRef = useRef<{ setResult: (result: ReactNode) => void; setError: (message: string | null) => void } | null>(null)
+  const errorContextRef = useRef<{ setError: (message: string | null) => void } | null>(null)
+
+  const [rows, setRows] = useState(2)
+  const [cols, setCols] = useState(2)
+  const [imageSrc, setImageSrc] = useState<string | null>(null)
+  const [imageNaturalWidth, setImageNaturalWidth] = useState<number>(0)
+  const [imageNaturalHeight, setImageNaturalHeight] = useState<number>(0)
+  const [slices, setSlices] = useState<SliceData[]>([])
+  const [status, setStatus] = useState<'idle' | 'processing' | 'done'>('idle')
+
+  // Cleanup object URLs on unmount
+  useEffect(() => {
+    return () => {
+      if (imageSrcRef.current) {
+        URL.revokeObjectURL(imageSrcRef.current)
+      }
+      sliceUrlsRef.current.forEach(url => URL.revokeObjectURL(url))
+    }
+  }, [])
+
+  // Load image from file into an off-screen Image element and set preview src
+  const loadImage = useCallback((file: File): Promise<void> => {
+    return new Promise((resolve, reject) => {
+      if (imageSrcRef.current) {
+        URL.revokeObjectURL(imageSrcRef.current)
+      }
+      const url = URL.createObjectURL(file)
+      imageSrcRef.current = url
+      const img = document.createElement('img')
+      img.onload = () => {
+        imageRef.current = img
+        setImageSrc(url)
+        setImageNaturalWidth(img.naturalWidth)
+        setImageNaturalHeight(img.naturalHeight)
+        resolve()
+      }
+      img.onerror = () => {
+        URL.revokeObjectURL(url)
+        imageSrcRef.current = null
+        reject(new Error('Failed to load image.'))
+      }
+      img.src = url
+    })
+  }, [])
+
+  const handleSlice = useCallback(async (files: ToolFile[], context: {
+    setProgress: (value: number) => void
+    setResult: (result: ReactNode) => void
+    setError: (message: string | null) => void
+  }) => {
+    // Store context callbacks for later use (e.g., download)
+    resultContextRef.current = { setResult: context.setResult, setError: context.setError }
+    errorContextRef.current = { setError: context.setError }
+
+    setSlices([])
+    sliceUrlsRef.current.forEach(url => URL.revokeObjectURL(url))
+    sliceUrlsRef.current = []
+
+    try {
+      if (files.length === 0) {
+        context.setError('Please select an image file.')
+        return
+      }
+
+      // Load image if not already loaded
+      if (!imageRef.current) {
+        await loadImage(files[0].file)
+      }
+
+      const img = imageRef.current
+      if (!img) throw new Error('Image not available.')
+
+      setStatus('processing')
+      context.setProgress(20)
+
+      const sliceWidth = img.naturalWidth / cols
+      const sliceHeight = img.naturalHeight / rows
+
+      const newSlices: SliceData[] = []
+
+      for (let row = 0; row < rows; row++) {
+        for (let col = 0; col < cols; col++) {
+          const canvas = document.createElement('canvas')
+          canvas.width = Math.round(Math.min(sliceWidth, img.naturalWidth - col * sliceWidth))
+          canvas.height = Math.round(Math.min(sliceHeight, img.naturalHeight - row * sliceHeight))
+          const ctx = canvas.getContext('2d')
+          if (!ctx) continue
+
+          const sx = col * sliceWidth
+          const sy = row * sliceHeight
+          const sw = canvas.width
+          const sh = canvas.height
+
+          ctx.drawImage(img, Math.round(sx), Math.round(sy), sw, sh, 0, 0, sw, sh)
+
+          const blob = await new Promise<Blob | null>((resolve) =>
+            canvas.toBlob(resolve, 'image/png')
+          )
+          if (!blob) continue
+
+          const dataUrl = URL.createObjectURL(blob)
+          sliceUrlsRef.current.push(dataUrl)
+          newSlices.push({ dataUrl, col: col + 1, row: row + 1 })
+        }
+        context.setProgress(20 + Math.round(((row + 1) / rows) * 70))
+      }
+
+      setSlices(newSlices)
+      context.setProgress(100)
+      setStatus('done')
+
+      // Build result card
+      context.setResult(
+        <Card className='space-y-3'>
+          <h3 className='text-sm font-semibold text-text'>
+            Slicing complete — {newSlices.length} pieces
+          </h3>
+          <div className='grid gap-3 p-2' style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
+            {newSlices.map((slice) => {
+              const sliceFilename = `slice_${slice.row}_${slice.col}.png`
+              return (
+                <div
+                  key={`${slice.row}-${slice.col}`}
+                  className='group relative overflow-hidden rounded-lg border border-border bg-base/40'
+                >
+                  <div className='absolute top-1 left-1 z-10 rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-mono text-white'>
+                    ({slice.row},{slice.col})
+                  </div>
+                  <img
+                    src={slice.dataUrl}
+                    alt={`Slice row ${slice.row} col ${slice.col}`}
+                    className='w-full object-contain'
+                  />
+                  <button
+                    type='button'
+                    onClick={() => {
+                      const link = document.createElement('a')
+                      link.href = slice.dataUrl
+                      link.download = sliceFilename
+                      document.body.appendChild(link)
+                      link.click()
+                      document.body.removeChild(link)
+                    }}
+                    className='absolute bottom-1 right-1 rounded bg-accent/90 p-1.5 text-white opacity-0 transition hover:bg-accent group-hover:opacity-100'
+                    title='Download slice'
+                  >
+                    <Download className='h-3.5 w-3.5' />
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+          <div className='flex justify-end pt-1'>
+            <Button
+              variant='secondary'
+              onClick={() => {
+                const baseName = 'slice'
+                newSlices.forEach((slice) => {
+                  const link = document.createElement('a')
+                  link.href = slice.dataUrl
+                  link.download = `${baseName}_${slice.row}_${slice.col}.png`
+                  document.body.appendChild(link)
+                  link.click()
+                  document.body.removeChild(link)
+                })
+              }}
+            >
+              <Download className='mr-2 h-4 w-4' />
+              Download All
+            </Button>
+          </div>
+        </Card>,
+      )
+    } catch (error) {
+      setStatus('idle')
+      context.setError(error instanceof Error ? error.message : 'Failed to slice image.')
+    }
+  }, [cols, rows, loadImage])
+
+  const handleImageChange = useCallback((newRows: number, newCols: number) => {
+    setRows(newRows)
+    setCols(newCols)
+    // Reset slices when grid changes
+    setSlices([])
+    sliceUrlsRef.current.forEach(url => URL.revokeObjectURL(url))
+    sliceUrlsRef.current = []
+  }, [])
+
+  const gridOptionRows = Array.from({ length: 20 }, (_, i) => i + 1)
+  const gridOptionCols = Array.from({ length: 20 }, (_, i) => i + 1)
+
+  return (
+    <div className='relative'>
+      <BaseToolLayout
+        title={tool.name}
+        description={tool.description}
+        accept='image/*'
+        maxFiles={1}
+        onProcess={handleSlice}
+        options={
+          <div className='space-y-4 text-sm'>
+            <div className='space-y-2'>
+              <div className='text-xs font-semibold uppercase text-muted'>Grid Split</div>
+              <div className='grid grid-cols-2 gap-2'>
+                <div>
+                  <label className='mb-1 block text-xs text-muted'>Rows</label>
+                  <Select
+                    value={String(rows)}
+                    onChange={e => handleImageChange(Number(e.target.value), cols)}
+                  >
+                    {gridOptionRows.map(n => (
+                      <option key={n} value={n}>{n}</option>
+                    ))}
+                  </Select>
+                </div>
+                <div>
+                  <label className='mb-1 block text-xs text-muted'>Columns</label>
+                  <Select
+                    value={String(cols)}
+                    onChange={e => handleImageChange(rows, Number(e.target.value))}
+                  >
+                    {gridOptionCols.map(n => (
+                      <option key={n} value={n}>{n}</option>
+                    ))}
+                  </Select>
+                </div>
+              </div>
+            </div>
+            <Badge className='border-0 bg-accent/15 text-accent'>Offline • Client-side only</Badge>
+          </div>
+        }
+      />
+
+      {/* Preview with grid overlay */}
+      {imageSrc && status !== 'processing' && (
+        <div className='mt-4'>
+          <Card className='space-y-2'>
+            <div className='flex items-center gap-1.5 text-xs font-semibold text-accent'>
+              <Grid3x3 className='h-3.5 w-3.5' />
+              Preview ({rows}×{cols} grid)
+            </div>
+            <div className='flex items-center justify-center rounded-xl border border-border bg-base/60 p-4 overflow-auto max-h-96'>
+              <div className='relative inline-block'>
+                <img
+                  src={imageSrc}
+                  alt='Loaded image'
+                  className='max-w-full max-h-80 object-contain'
+                />
+                <svg
+                  className='absolute inset-0 pointer-events-none'
+                  style={{ width: '100%', height: '100%' }}
+                  viewBox='0 0 100 100'
+                  preserveAspectRatio='none'
+                >
+                  {/* Vertical grid lines */}
+                  {Array.from({ length: cols - 1 }, (_, i) => (
+                    <line
+                      key={`v-${i}`}
+                      x1={`${((i + 1) / cols) * 100}%`}
+                      y1='0'
+                      x2={`${((i + 1) / cols) * 100}%`}
+                      y2='100%'
+                      stroke='rgba(59, 130, 246, 0.8)'
+                      strokeWidth='0.5'
+                      strokeDasharray='2,1'
+                    />
+                  ))}
+                  {/* Horizontal grid lines */}
+                  {Array.from({ length: rows - 1 }, (_, i) => (
+                    <line
+                      key={`h-${i}`}
+                      x1='0'
+                      y1={`${((i + 1) / rows) * 100}%`}
+                      x2='100%'
+                      y2={`${((i + 1) / rows) * 100}%`}
+                      stroke='rgba(59, 130, 246, 0.8)'
+                      strokeWidth='0.5'
+                      strokeDasharray='2,1'
+                    />
+                  ))}
+                </svg>
+              </div>
+            </div>
+            <p className='text-xs text-muted'>
+              Original: {imageNaturalWidth}×{imageNaturalHeight}px → {rows * cols} slices
+            </p>
+          </Card>
+        </div>
+      )}
+    </div>
+  )
+}

@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import type { ToolDefinition } from '@/data/toolRegistry'
 import { BaseToolLayout } from '@/components/tools/BaseToolLayout'
 import type { ToolFile } from '@/components/tools/BaseToolLayout'
@@ -184,10 +184,13 @@ export function QrCodeDecoderTool({ tool }: QrCodeDecoderToolProps) {
 function ResultCard({ result }: { result: DecodeResult }) {
   const [copied, setCopied] = useState(false)
 
+  const timerRef = useRef<NodeJS.Timeout | null>(null)
+
   const handleCopy = useCallback(async () => {
     await navigator.clipboard.writeText(result.text)
     setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+    if (timerRef.current) clearTimeout(timerRef.current)
+    timerRef.current = setTimeout(() => setCopied(false), 2000)
   }, [result.text])
 
   const handleOpenUrl = useCallback(() => {

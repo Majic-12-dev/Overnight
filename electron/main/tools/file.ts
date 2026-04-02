@@ -1,5 +1,6 @@
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
+import { randomBytes } from 'node:crypto'
 import { ensureDir } from '../utils/fs'
 
 export type BulkRenamePayload = {
@@ -390,6 +391,94 @@ function categorizeByExtension(ext: string): string {
   }
 
   return extensionMap[ext] || 'Other'
+}
+
+export type ShredFilesPayload = {
+  inputPaths: string[]
+  passes: 3 | 7 | 35
+  verify: boolean
+}
+
+export type ShredFilesResult = {
+  filesProcessed: number
+  bytesOverwritten: number
+  verificationPassed: boolean
+  errors: string[]
+}
+
+export async function shredFiles({
+  inputPaths,
+  passes,
+  verify,
+}: ShredFilesPayload): Promise<ShredFilesResult> {
+  if (!inputPaths.length) {
+    throw new Error('No files provided.')
+  }
+
+  const errors: string[] = []
+  let filesProcessed = 0
+  let bytesOverwritten = 0
+
+  // File size chunk for streaming: 1 MB chunks
+  const CHUNK_SIZE = 1024 * 1024
+
+  for (const filePath of inputPaths) {
+    try {
+      const stats = await fs.stat(filePath)
+      if (!stats.isFile()) {
+        errors.push(`'${filePath}' is not a file.`)
+        continue
+      }
+
+      const fileSize = stats.size
+
+      // Overwrite file contents N times with random bytes
+      const fd = await fs.open(filePath, 'r+')
+
+      for (let pass = 0; pass < passes; pass++) {
+        let offset = 0
+        while (offset < fileSize) {
+          const writeSize = Math.min(CHUNK_SIZE, fileSize - offset)
+          const randomData = randomBytes(writeSize)
+          await fd.write(randomData, 0, writeSize, offset)
+          offset += writeSize
+        }
+        // Ensure data hits the disk
+        await fd.sync()
+      }
+
+      await fd.close()
+      bytesOverwritten += fileSize * passes
+
+      // Delete the file
+      await fs.unlink(filePath)
+
+      // Verify file no longer exists
+      if (verify) {
+        try {
+          await fs.access(filePath)
+          errors.push(`Verification failed: '${filePath}' still exists after deletion.`)
+          continue
+        } catch {
+          // Expected: file should not be accessible
+        }
+      }
+
+      filesProcessed++
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      errors.push(`Failed to shred '${filePath}': ${message}`)
+    }
+  }
+
+  const verificationPassed = verify && errors.length === 0
+
+  return {
+    filesProcessed,
+    bytesOverwritten,
+    verificationPassed: verify ? verificationPassed : true,
+    errors,
+  }
 }
 
 function categorizeByDate(timestampMs: number): string {

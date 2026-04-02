@@ -139,6 +139,7 @@ import { QrCodeDecoderTool } from '@/tools/productivity/QrCodeDecoderTool'
 import { ImageEnhancerTool } from '@/tools/image/ImageEnhancerTool'
 import { GradientGeneratorTool } from '@/tools/productivity/GradientGeneratorTool'
 import { FileShredderTool } from '@/tools/security/FileShredderTool'
+import { BackgroundEnhancerTool } from '@/tools/image/BackgroundEnhancerTool'
 export type ToolCategory = {
   id: string
   label: string
@@ -824,6 +825,14 @@ export const tools: ToolDefinition[] = [
     categoryId: 'security',
     icon: Trash2,
     component: FileShredderTool,
+  },
+  {
+    id: 'image-background-enhance',
+    name: 'Background Enhancer',
+    description: 'Remove or blur image backgrounds with smart edge detection.',
+    categoryId: 'image',
+    icon: Sparkles,
+    component: BackgroundEnhancerTool,
   },
 ]
 

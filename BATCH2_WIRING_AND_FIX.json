@@ -1,0 +1,9 @@
+All tasks complete:
+
+1. **ImageEnhancerTool.tsx** created at `src/tools/image/ImageEnhancerTool.tsx` — canvas-based with brightness/contrast/saturation/sharpness sliders, live preview via `requestAnimationFrame`, hold-to-see-original (mouse/touch), PNG + JPEG export, `BaseToolLayout`, no `alert()` calls.
+
+2. **toolRegistry.ts** — `BackgroundEnhancerTool` import added (the other 3 were already present on disk), `BackgroundEnhancerTool` entry wired with `id: 'image-background-enhance'`, `categoryId: 'image'`, `icon: Sparkles`.
+
+3. **Bugfixes**: Renamed `BackgroundEnhancerTool.tsx`'s exported function from `ImageEnhancerTool` → `BackgroundEnhancerTool`; added missing `useRef` import to `QrCodeDecoderTool.tsx`.
+
+**`npx tsc --noEmit` passes with 0 errors.**

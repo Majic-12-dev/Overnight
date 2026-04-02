@@ -48,7 +48,7 @@ const DEFAULT_SETTINGS: EnhanceSettings = {
   colorTemperature: 0,
 }
 
-export function ImageEnhancerTool({ tool }: ImageEnhancerToolProps) {
+export function BackgroundEnhancerTool({ tool }: ImageEnhancerToolProps) {
   const [files, setFiles] = useState<ToolFileLocal[]>([])
   const [settings, setSettings] = useState<EnhanceSettings>(DEFAULT_SETTINGS)
   const [processing, setProcessing] = useState(false)

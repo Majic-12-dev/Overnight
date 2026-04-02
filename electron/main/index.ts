@@ -30,7 +30,7 @@ import {
   renameImages,
 } from './tools/image'
 import { mergeTextFiles } from './tools/text'
-import { bulkRename, deleteEmptyFolders, scanLargeFiles, organizeFiles, deleteFiles } from './tools/file'
+import { bulkRename, deleteEmptyFolders, scanLargeFiles, organizeFiles, deleteFiles, shredFiles } from './tools/file'
 import { checksumFiles, processSecurity } from './tools/security'
 import { processArchive } from './tools/archive'
 import { ensureDir } from './utils/fs'
@@ -243,6 +243,8 @@ ipcMain.handle('file:delete', async (_, payload: { items: { sourcePath: string }
   const trashBaseDir = path.join(documentsDir, 'DocFlow Pro', '.docflow_trash')
   return deleteFiles({ items: payload.items }, trashBaseDir)
 })
+
+ipcMain.handle('file:shred', async (_, payload) => shredFiles(payload))
 
 ipcMain.handle('security:checksum', async (_, payload) => checksumFiles(payload))
 ipcMain.handle('security:process', async (_, payload) => processSecurity(payload))

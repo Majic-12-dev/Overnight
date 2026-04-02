@@ -31,6 +31,9 @@ export function Slider({ label, unit, showValue = true, className, ...props }: S
           'h-2 w-full cursor-pointer appearance-none rounded-full bg-panel-strong accent-accent',
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2',
         )}
+        aria-valuenow={Number(props.value ?? 0)}
+        aria-valuemin={Number(props.min ?? 0)}
+        aria-valuemax={Number(props.max ?? 100)}
         {...props}
       />
     </div>

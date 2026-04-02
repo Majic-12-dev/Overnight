@@ -1,0 +1,16 @@
+Done. Verified:
+
+| Criterion | Status |
+|---|---|
+| **File path** | ✅ `src/tools/productivity/ColorContrastCheckerTool.tsx` |
+| **Export** | ✅ `ColorContrastCheckerTool` accepting `{ tool: ToolDefinition }` |
+| **BaseToolLayout** | ✅ Wraps all content, `options` + `result` props used |
+| **Two color inputs** | ✅ `<input type="color">` + hex text `<input>` per color |
+| **Relative luminance** | ✅ `sRGB≤0.03928: v/12.92 : ((v+0.055)/1.055)^2.4` → `0.2126R+0.7152G+0.0722B` |
+| **Contrast ratio** | ✅ `(L1+0.05)/(L2+0.05)` |
+| **AA** | ✅ Normal 4.5:1, Large 3:1 |
+| **AAA** | ✅ Normal 7:1, Large 4.5:1 |
+| **Ratio display** | ✅ `toFixed(2)` with `:1` suffix |
+| **Live preview** | ✅ White text on FG bg + combined FG-on-BG with sample text |
+| **No `alert()`** | ✅ |
+| **TypeScript** | ✅ Zero compile errors |
