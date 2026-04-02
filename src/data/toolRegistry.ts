@@ -16,6 +16,7 @@ import {
   Diff,
   FileArchive,
   FileCode,
+  Globe,
   FileDigit,
   FileImage,
   FileInput,
@@ -110,6 +111,7 @@ import { QrCodeGeneratorTool } from '@/tools/productivity/QrCodeGeneratorTool'
 import { PasswordGeneratorTool } from '@/tools/security/PasswordGeneratorTool'
 import { UnitConverterTool } from '@/tools/productivity/UnitConverterTool'
 import { ColorPaletteTool } from '@/tools/productivity/ColorPaletteTool'
+import { TimeZoneConverterTool } from '@/tools/productivity/TimeZoneConverterTool'
 import { TimestampConverterTool } from '@/tools/text/TimestampConverterTool'
 import { RegexTesterTool } from '@/tools/text/RegexTesterTool'
 import { RegexPatternLibraryTool } from '@/tools/text/RegexPatternLibraryTool'
@@ -519,6 +521,14 @@ export const tools: ToolDefinition[] = [
     categoryId: 'productivity',
     icon: QrCode,
     component: QrCodeGeneratorTool,
+  },
+  {
+    id: 'timezone-converter',
+    name: 'Time Zone Converter',
+    description: 'View live world clocks, convert between timezones, and compare global times at a glance.',
+    categoryId: 'productivity',
+    icon: Globe,
+    component: TimeZoneConverterTool,
   },
   {
     id: 'password-generator',

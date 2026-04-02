@@ -62,3 +62,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Added `jsqr` dependency for client-side QR decoding
 - New `Slider` UI component with ARIA accessibility attributes
 - All new tools integrated into toolRegistry with proper categories and icons
+
+## Batch 4 — Code & Developer Tools (2026-04-02)
+
+### New Tools
+- **Code Minifier** — Minify HTML, CSS, JS with compression ratio stats and beautify option
+- **Regex Pattern Library** — 8 named presets (email, URL, phone, IP, date, etc.) with live match highlighting
+- **Time Zone Converter** — Multiple time zone clocks, live updates, and conversion between zones
+
+### Infrastructure
+- All tools compile cleanly with `npx tsc --noEmit` and `npm run build`
