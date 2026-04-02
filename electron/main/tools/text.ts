@@ -1,6 +1,7 @@
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
 import { ensureDir } from '../utils/fs'
+import { validatePaths } from '../utils/pathValidation'
 
 export type MergeTextPayload = {
   inputPaths: string[]
@@ -18,6 +19,11 @@ export async function mergeTextFiles({
   includeHeader,
 }: MergeTextPayload) {
   if (!inputPaths.length) throw new Error('No text files provided.')
+
+  const safeName = sanitizeFileName(outputName || 'merged.txt')
+  const outputPath = path.join(outputDir, safeName)
+
+  validatePaths(inputPaths, outputPath)
   await ensureDir(outputDir)
 
   const pieces: string[] = []
@@ -31,8 +37,6 @@ export async function mergeTextFiles({
   }
 
   const merged = pieces.join(separator || '\n')
-  const safeName = sanitizeFileName(outputName || 'merged.txt')
-  const outputPath = path.join(outputDir, safeName)
   await fs.writeFile(outputPath, merged, 'utf-8')
 
   return { outputPath, sourceCount: inputPaths.length }

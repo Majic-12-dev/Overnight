@@ -2,6 +2,7 @@ import { promises as fs } from 'node:fs'
 import path from 'node:path'
 import { PDFDocument, degrees, rgb } from 'pdf-lib'
 import { ensureDir } from '../utils/fs'
+import { validatePaths } from '../utils/pathValidation'
 
 interface EncryptOptions {
   userPassword?: string
@@ -87,6 +88,7 @@ export async function mergePdf({ inputPaths, outputDir, outputName }: MergePdfPa
   const safeName = sanitizeFileName(outputName || 'merged.pdf')
   const outputPath = path.join(outputDir, safeName.endsWith('.pdf') ? safeName : `${safeName}.pdf`)
 
+  validatePaths(inputPaths, outputPath)
   await ensureDir(outputDir)
 
   const merged = await PDFDocument.create()
